@@ -638,7 +638,7 @@
   </div>
 </div>
 
-<footer>CVScore v7 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>CVScore v8 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -775,7 +775,7 @@ async function handleFile(file) {
       previewEl.appendChild(div);
     }
     /* Contrôle : est-ce bien un CV ? Sinon, pop-up avec arrière-plan flouté */
-    if (!isLikelyCV(text)) {
+    if (!isLikelyCV(text, file.name)) {
       spinner.style.display = 'none';
       pendingAnalysis = { text, lines, name: file.name, pageCount };
       document.getElementById('notCvModal').classList.add('open');
@@ -893,15 +893,33 @@ function detectSectors(allText) {
 }
 
 /* ================== EST-CE BIEN UN CV ? ================== */
-function isLikelyCV(text) {
+function isLikelyCV(text, fileName) {
   const low = text.toLowerCase();
+  const fname = (fileName || '').toLowerCase();
+
+  /* Mots-clés de documents administratifs : sûrement PAS un CV */
+  const negative = ['attestation', 'assurance maladie', 'carte vitale', 'sécurité sociale', 'ameli',
+    "avis d'imposition", 'impôts', 'facture', 'quittance', 'relevé bancaire', 'relevé de compte',
+    'bulletin de paie', 'bulletin de salaire', 'fiche de paie', 'certificat de scolarité',
+    'contrat de bail', 'contrat de location', 'conditions générales', 'ordonnance', 'convocation',
+    'procès-verbal', 'caf ', 'crous', 'urssaf', 'notice', "mode d'emploi", 'garantie'];
+  const negHits = negative.filter(k => low.includes(k)).length;
+
+  /* Nom de fichier évocateur d'un document administratif */
+  const badName = /(attest|facture|releve|relevé|bulletin|quittance|impot|impôt|bail|ordonnance|certificat|scolarite|scolarité)/.test(fname);
+
+  /* Un CV contient une section type — signal obligatoire */
+  const hasSections = /(expérience|formation|compétences|education|experience|skills|parcours professionnel)/.test(low);
+
   let signals = 0;
   if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text)) signals++;
   if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(text)) signals++;
-  if (/(expérience|formation|compétences|education|experience|skills|parcours)/.test(low)) signals++;
   if ((text.match(/(20\d{2}|19\d{2})/g) || []).length >= 2) signals++;
-  if (/(stage|alternance|diplôme|master|licence|université|baccalauréat|degree|internship|school|cdi|cdd)/.test(low)) signals++;
-  return signals >= 3;
+  if (/(stage|alternance|diplôme|master|licence|université|baccalauréat|degree|internship|school)/.test(low)) signals++;
+
+  if (negHits >= 2) return false;
+  if ((negHits >= 1 || badName) && !hasSections) return false;
+  return hasSections && signals >= 2;
 }
 
 function detectLang(text) {
