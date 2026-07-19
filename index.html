@@ -185,7 +185,7 @@
   .feature p { font-size: 0.88rem; color: var(--navy-soft); }
 
   /* ---- Results ---- */
-  #results { display: none; padding: 30px 6vw 90px; max-width: 1080px; margin: 0 auto; }
+  #results { display: none; padding: 30px 4vw 90px; max-width: 1240px; margin: 0 auto; }
   .results-header {
     display: flex;
     flex-wrap: wrap;
@@ -246,8 +246,14 @@
   }
   .btn-restart:hover { background: var(--bg-soft); }
 
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
-  @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+  .grid-main {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .grid-main { grid-template-columns: 1fr; } }
+  .right-col { display: flex; flex-direction: column; gap: 26px; }
 
   .card {
     background: var(--bg);
@@ -264,6 +270,32 @@
     align-items: center;
     gap: 8px;
   }
+
+  /* ---- CV preview ---- */
+  .preview-card { position: sticky; top: 90px; }
+  @media (max-width: 980px) { .preview-card { position: static; } }
+  #cvPreview { max-height: 72vh; overflow-y: auto; border-radius: 10px; }
+  #cvPreview canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(14,26,58,0.08);
+  }
+  .docx-preview, .txt-preview {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    box-shadow: 0 2px 12px rgba(14,26,58,0.08);
+  }
+  .docx-preview h1, .docx-preview h2, .docx-preview h3 { font-size: 0.9rem; margin: 8px 0 4px; }
+  .docx-preview p, .docx-preview li { margin-bottom: 4px; }
+  .txt-preview { white-space: pre-wrap; font-family: 'Courier New', monospace; }
 
   .criterion { margin-bottom: 16px; }
   .criterion .row {
@@ -310,6 +342,34 @@
   .tag.low { background: #e8f6ef; color: var(--green); }
   .advice b { font-weight: 700; }
   .advice .detail { color: var(--navy-soft); }
+
+  /* ---- Examples before/after ---- */
+  .example { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--bg-soft); }
+  .example:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .example .before, .example .after {
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+  }
+  .example .before {
+    background: #fdecea;
+    color: #7c2d25;
+  }
+  .example .after {
+    background: #e8f6ef;
+    color: #0e5b38;
+  }
+  .example .lbl {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 3px;
+    opacity: 0.7;
+  }
+  .example .why { font-size: 0.78rem; color: var(--navy-soft); }
 
   .keywords-box { margin-top: 4px; }
   .kw {
@@ -384,9 +444,9 @@
 
 <section class="features" id="features">
   <div class="feature"><div class="emoji">🤖</div><h3>Critères ATS réels</h3><p>Structure, sections, format des dates, lisibilité machine : les mêmes points que vérifient Workday, Taleo ou SuccessFactors.</p></div>
+  <div class="feature"><div class="emoji">🔎</div><h3>Exemples personnalisés</h3><p>Des reformulations avant/après tirées directement des phrases de votre CV.</p></div>
+  <div class="feature"><div class="emoji">📊</div><h3>Score détaillé</h3><p>Une note globale sur 100, décomposée par critère, avec l'aperçu de votre CV en regard.</p></div>
   <div class="feature"><div class="emoji">🎯</div><h3>Matching d'offre</h3><p>Collez une offre d'emploi : nous comparons vos mots-clés à ceux attendus par le recruteur.</p></div>
-  <div class="feature"><div class="emoji">📊</div><h3>Score détaillé</h3><p>Une note globale sur 100, décomposée par critère, pour savoir exactement où agir.</p></div>
-  <div class="feature"><div class="emoji">💡</div><h3>Conseils actionnables</h3><p>Des recommandations classées par priorité, applicables en quelques minutes.</p></div>
 </section>
 
 <section id="results">
@@ -409,20 +469,33 @@
     </div>
   </div>
 
-  <div class="grid-2">
-    <div class="card">
-      <h3>📊 Détail par critère</h3>
-      <div id="criteria"></div>
+  <div class="grid-main">
+    <div class="card preview-card">
+      <h3>📄 Aperçu de votre CV</h3>
+      <div id="cvPreview"></div>
     </div>
-    <div class="card">
-      <h3>💡 Conseils prioritaires</h3>
-      <ul class="advice" id="adviceList"></ul>
-    </div>
-  </div>
 
-  <div class="card" id="kwCard" style="margin-top:26px; display:none;">
-    <h3>🎯 Mots-clés de l'offre d'emploi</h3>
-    <div class="keywords-box" id="kwBox"></div>
+    <div class="right-col">
+      <div class="card">
+        <h3>📊 Détail par critère</h3>
+        <div id="criteria"></div>
+      </div>
+
+      <div class="card" id="exCard" style="display:none;">
+        <h3>🔎 Exemples tirés de votre CV</h3>
+        <div id="examples"></div>
+      </div>
+
+      <div class="card">
+        <h3>💡 Conseils prioritaires</h3>
+        <ul class="advice" id="adviceList"></ul>
+      </div>
+
+      <div class="card" id="kwCard" style="display:none;">
+        <h3>🎯 Mots-clés de l'offre d'emploi</h3>
+        <div class="keywords-box" id="kwBox"></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -460,34 +533,78 @@ function showError(msg) {
   spinner.style.display = 'none';
 }
 
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 async function handleFile(file) {
   errorMsg.style.display = 'none';
   spinner.style.display = 'block';
+  const previewEl = document.getElementById('cvPreview');
+  previewEl.innerHTML = '';
   try {
     let text = '';
+    let lines = [];
     let pageCount = 1;
     const name = file.name.toLowerCase();
+
     if (name.endsWith('.pdf')) {
       const buf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       pageCount = pdf.numPages;
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
+
+        /* Rendu visuel */
+        if (i <= 3) {
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          previewEl.appendChild(canvas);
+        }
+
+        /* Extraction ligne par ligne (regroupement par position verticale) */
         const content = await page.getTextContent();
-        text += content.items.map(it => it.str).join(' ') + '\n';
+        const rows = {};
+        content.items.forEach(it => {
+          if (!it.str.trim()) return;
+          const y = Math.round(it.transform[5] / 3) * 3;
+          (rows[y] = rows[y] || []).push(it);
+        });
+        Object.keys(rows).map(Number).sort((a, b) => b - a).forEach(y => {
+          const line = rows[y].sort((a, b) => a.transform[4] - b.transform[4]).map(t => t.str).join(' ').replace(/\s+/g, ' ').trim();
+          if (line) lines.push(line);
+        });
       }
+      text = lines.join('\n');
     } else if (name.endsWith('.docx')) {
       const buf = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer: buf });
-      text = result.value;
+      const raw = await mammoth.extractRawText({ arrayBuffer: buf });
+      text = raw.value;
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean);
       pageCount = Math.max(1, Math.round(text.split(/\s+/).length / 450));
+      try {
+        const html = await mammoth.convertToHtml({ arrayBuffer: buf });
+        const div = document.createElement('div');
+        div.className = 'docx-preview';
+        div.innerHTML = html.value;
+        div.querySelectorAll('img').forEach(img => { img.style.maxWidth = '100%'; });
+        previewEl.appendChild(div);
+      } catch (e) { /* aperçu non bloquant */ }
     } else if (name.endsWith('.txt')) {
       text = await file.text();
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const div = document.createElement('div');
+      div.className = 'txt-preview';
+      div.textContent = text;
+      previewEl.appendChild(div);
     } else {
       showError('Format non pris en charge. Utilisez un fichier PDF, DOCX ou TXT.');
       return;
     }
-    analyze(text, file.name, pageCount);
+    analyze(text, lines, file.name, pageCount);
   } catch (e) {
     showError("Impossible de lire ce fichier : " + e.message);
   }
@@ -504,15 +621,13 @@ const SECTIONS_FR = {
   'expérience': ['expérience', 'expériences professionnelles', 'parcours professionnel'],
   'formation': ['formation', 'études', 'diplômes', 'cursus'],
   'compétences': ['compétences', 'savoir-faire', 'expertises', 'skills'],
-  'langues': ['langues'],
-  'contact': []
+  'langues': ['langues']
 };
 const SECTIONS_EN = {
   'experience': ['experience', 'work experience', 'professional experience', 'employment'],
   'education': ['education', 'academic background', 'qualifications'],
   'skills': ['skills', 'competencies', 'expertise', 'technical skills'],
-  'languages': ['languages'],
-  'contact': []
+  'languages': ['languages']
 };
 
 function detectLang(text) {
@@ -523,7 +638,88 @@ function detectLang(text) {
   return fr >= en ? 'fr' : 'en';
 }
 
-function analyze(text, fileName, pageCount) {
+/* ---- Exemples personnalisés avant/après ---- */
+function buildExamples(lines, lang) {
+  const examples = [];
+  const used = new Set();
+
+  const weakMapFr = [
+    [/^[-•▪●➤➔\s]*en charge (de la |de l'|du |des |de )/i, 'Géré '],
+    [/^[-•▪●➤➔\s]*responsable (de la |de l'|du |des |de )/i, 'Piloté '],
+    [/^[-•▪●➤➔\s]*participation (à la |à l'|au |aux |à )/i, 'Contribué à '],
+    [/^[-•▪●➤➔\s]*chargée? (de la |de l'|du |des |de )/i, 'Géré '],
+    [/^[-•▪●➤➔\s]*aide (à la |à l'|au |aux |à )/i, 'Appuyé '],
+    [/^[-•▪●➤➔\s]*suivi (de la |de l'|du |des |de )/i, 'Assuré le suivi de '],
+    [/^[-•▪●➤➔\s]*assistance (à |aux |au |dans )/i, 'Accompagné '],
+    [/^[-•▪●➤➔\s]*réalisation (de la |de l'|du |des |de )/i, 'Réalisé '],
+    [/^[-•▪●➤➔\s]*gestion (de la |de l'|du |des |de )/i, 'Géré '],
+    [/^[-•▪●➤➔\s]*rédaction (de la |de l'|du |des |de )/i, 'Rédigé '],
+    [/^[-•▪●➤➔\s]*mise en place (de la |de l'|du |des |de )/i, 'Mis en place '],
+    [/^[-•▪●➤➔\s]*travail (sur|avec) /i, 'Travaillé sur '],
+    [/^[-•▪●➤➔\s]*j'ai /i, '']
+  ];
+  const weakMapEn = [
+    [/^[-•▪●➤➔\s]*in charge of /i, 'Managed '],
+    [/^[-•▪●➤➔\s]*responsible for /i, 'Led '],
+    [/^[-•▪●➤➔\s]*participation in /i, 'Contributed to '],
+    [/^[-•▪●➤➔\s]*helped (with )?/i, 'Supported '],
+    [/^[-•▪●➤➔\s]*worked on /i, 'Delivered '],
+    [/^[-•▪●➤➔\s]*assisted (with |in )?/i, 'Supported ']
+  ];
+  const weakMap = lang === 'fr' ? weakMapFr : weakMapEn;
+
+  /* 1. Tournures faibles → verbe d'action */
+  for (const raw of lines) {
+    if (examples.length >= 2) break;
+    const l = raw.trim();
+    if (l.length < 18 || l.length > 170 || used.has(l)) continue;
+    for (const [re, verb] of weakMap) {
+      if (re.test(l)) {
+        let after = l.replace(re, verb).trim();
+        after = after.charAt(0).toUpperCase() + after.slice(1);
+        if (!/\d/.test(after)) {
+          after += lang === 'fr' ? ' [+ chiffre : volume, montant, %]' : ' [+ number: volume, amount, %]';
+        }
+        examples.push({
+          before: l,
+          after: after,
+          why: lang === 'fr'
+            ? "Un verbe d'action en tête de phrase est mieux classé par les ATS qu'une tournure descriptive."
+            : 'ATS rank action verbs higher than descriptive phrasing.'
+        });
+        used.add(l);
+        break;
+      }
+    }
+  }
+
+  /* 2. Phrases d'expérience sans chiffres → version quantifiée */
+  for (const raw of lines) {
+    if (examples.length >= 4) break;
+    const l = raw.trim();
+    if (l.length < 25 || l.length > 170 || /\d/.test(l) || used.has(l)) continue;
+    if (/(client|portefeuille|projet|équipe|dossier|budget|vente|patrimoine|reporting|analyse|étude|campagne|contrat|customer|portfolio|project|team|report)/i.test(l)) {
+      const suffix = lang === 'fr'
+        ? (/client/i.test(l) ? ' — ex. : « … pour un portefeuille de 30 clients »'
+          : /budget|montant|€/i.test(l) ? ' — ex. : « … budget de 50 k€ »'
+          : /projet|project/i.test(l) ? ' — ex. : « … 3 projets menés en parallèle »'
+          : ' — ex. : « … +15 % », « 20 dossiers/mois »')
+        : ' — e.g.: “+15%”, “30 clients”, “€50k budget”';
+      examples.push({
+        before: l,
+        after: l + suffix,
+        why: lang === 'fr'
+          ? 'Les résultats chiffrés augmentent le score de pertinence et crédibilisent la mission auprès du recruteur.'
+          : 'Quantified results boost relevance scores and credibility.'
+      });
+      used.add(l);
+    }
+  }
+
+  return examples;
+}
+
+function analyze(text, lines, fileName, pageCount) {
   const cleaned = text.replace(/\s+/g, ' ').trim();
   const lower = cleaned.toLowerCase();
   const words = cleaned.split(/\s+/).filter(Boolean);
@@ -553,12 +749,10 @@ function analyze(text, fileName, pageCount) {
   /* --- 2. Sections standard (20 pts) --- */
   const sections = lang === 'fr' ? SECTIONS_FR : SECTIONS_EN;
   let secPts = 0;
-  const secFound = [];
   const secMissing = [];
   for (const [key, variants] of Object.entries(sections)) {
-    if (key === 'contact') continue;
     const found = variants.some(v => lower.includes(v));
-    if (found) { secPts += 5; secFound.push(key); } else secMissing.push(key);
+    if (found) secPts += 5; else secMissing.push(key);
   }
   secPts = Math.min(20, secPts);
   if (secMissing.length) {
@@ -588,20 +782,20 @@ function analyze(text, fileName, pageCount) {
   let verbPts = Math.min(15, verbsFound.length * 3);
   if (verbsFound.length < 3) {
     advice.push({p:'high', t:"Utilisez plus de verbes d'action", d:(lang==='fr'
-      ? "Commencez chaque mission par un verbe fort : « Géré un portefeuille de… », « Analysé… », « Optimisé… ». Seulement " + verbsFound.length + " détecté(s)."
+      ? "Commencez chaque mission par un verbe fort : « Géré un portefeuille de… », « Analysé… », « Optimisé… ». Seulement " + verbsFound.length + " détecté(s) — voir les exemples tirés de votre CV."
       : "Start each bullet with a strong verb: Managed, Analyzed, Delivered…")});
   } else if (verbsFound.length < 5) {
-    advice.push({p:'low', t:"Variez davantage vos verbes d'action", d:'Bonne base (' + verbsFound.length + ' verbes), visez-en 6 à 8 différents.'});
+    advice.push({p:'low', t:"Variez davantage vos verbes d'action", d:'Bonne base (' + verbsFound.length + ' verbes : ' + verbsFound.slice(0,4).join(', ') + '…), visez-en 6 à 8 différents.'});
   }
   criteria.push({ name: "Verbes d'action", pts: verbPts, max: 15 });
 
   /* --- 5. Résultats chiffrés (15 pts) --- */
-  const numbers = cleaned.match(/\d+\s?(%|k€|K€|M€|€|k\$|\$|clients?|dossiers?|projets?|personnes?|collaborateurs?|users?|%)/g) || [];
+  const numbers = cleaned.match(/\d+\s?(%|k€|K€|M€|€|k\$|\$|clients?|dossiers?|projets?|personnes?|collaborateurs?|users?)/g) || [];
   const percents = cleaned.match(/\d+\s?%/g) || [];
   let numPts = Math.min(15, numbers.length * 3 + percents.length * 2);
   if (numbers.length < 2) {
     advice.push({p:'high', t:'Quantifiez vos résultats', d:(lang==='fr'
-      ? "Les chiffres crédibilisent : « portefeuille de 40 clients », « +15 % de rendement », « budget de 50 k€ ». Presque aucun chiffre d'impact détecté."
+      ? "Les chiffres crédibilisent : « portefeuille de 40 clients », « +15 % de rendement », « budget de 50 k€ ». Presque aucun chiffre d'impact détecté — voir les exemples tirés de votre CV."
       : 'Add measurable impact: “+15% return”, “40 clients”, “€50k budget”.')});
   }
   criteria.push({ name: 'Résultats chiffrés', pts: numPts, max: 15 });
@@ -613,8 +807,6 @@ function analyze(text, fileName, pageCount) {
     readPts -= 5;
     advice.push({p:'med', t:'Caractères spéciaux détectés', d:'Symboles graphiques (◆ ■ │…) : certains ATS les transforment en texte illisible. Préférez des tirets simples.'});
   }
-  const emailCount = (cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+/gi) || []).length;
-  if (emailCount > 2) readPts -= 2;
   const capsWords = words.filter(w => w.length > 3 && w === w.toUpperCase() && /^[A-ZÀ-Ü]+$/.test(w)).length;
   if (capsWords > 25) {
     readPts -= 3;
@@ -631,7 +823,6 @@ function analyze(text, fileName, pageCount) {
   /* --- 7. Mots-clés de l'offre (10 pts) ou compétences génériques --- */
   const jobText = document.getElementById('jobText').value.trim();
   let kwPts = 0;
-  let kwHtml = '';
   if (jobText) {
     const jobWords = jobText.toLowerCase().match(/[a-zà-ÿ][a-zà-ÿ+#.-]{3,}/g) || [];
     const freq = {};
@@ -640,10 +831,10 @@ function analyze(text, fileName, pageCount) {
     const found = topKw.filter(k => lower.includes(k));
     const missing = topKw.filter(k => !lower.includes(k));
     kwPts = topKw.length ? Math.round((found.length / topKw.length) * 10) : 5;
-    kwHtml = found.map(k => '<span class="kw found">✓ ' + k + '</span>').join('') +
-             missing.map(k => '<span class="kw missing">✗ ' + k + '</span>').join('');
+    const kwHtml = found.map(k => '<span class="kw found">✓ ' + escapeHtml(k) + '</span>').join('') +
+             missing.map(k => '<span class="kw missing">✗ ' + escapeHtml(k) + '</span>').join('');
     if (missing.length > topKw.length / 2) {
-      advice.push({p:'high', t:'Trop peu de mots-clés de l\'offre', d:'Intégrez naturellement les termes manquants (en rouge ci-dessous) dans vos expériences et compétences — les ATS classent par correspondance de mots-clés.'});
+      advice.push({p:'high', t:"Trop peu de mots-clés de l'offre", d:'Intégrez naturellement les termes manquants (en rouge) dans vos expériences — les ATS classent par correspondance de mots-clés. Ex. : « ' + missing.slice(0,3).join(' », « ') + ' ».'});
     }
     document.getElementById('kwCard').style.display = 'block';
     document.getElementById('kwBox').innerHTML = kwHtml;
@@ -654,11 +845,14 @@ function analyze(text, fileName, pageCount) {
     const found = generic.filter(k => lower.includes(k));
     kwPts = Math.min(10, found.length * 2);
     if (found.length < 3) {
-      advice.push({p:'med', t:'Peu de compétences techniques identifiables', d:'Listez explicitement vos outils : Excel, VBA, Python, Bloomberg, Pack Office, niveau d\'anglais…'});
+      advice.push({p:'med', t:'Peu de compétences techniques identifiables', d:"Listez explicitement vos outils : Excel, VBA, Python, Bloomberg, Pack Office, niveau d'anglais…"});
     }
     document.getElementById('kwCard').style.display = 'none';
   }
   criteria.push({ name: jobText ? "Matching offre d'emploi" : 'Compétences clés', pts: kwPts, max: 10 });
+
+  /* --- Exemples personnalisés --- */
+  const examples = buildExamples(lines, lang);
 
   /* --- Score final --- */
   const total = criteria.reduce((s, c) => s + c.pts, 0);
@@ -671,10 +865,10 @@ function analyze(text, fileName, pageCount) {
   const prio = { high: 0, med: 1, low: 2 };
   advice.sort((a, b) => prio[a.p] - prio[b.p]);
 
-  renderResults(score, criteria, advice, fileName);
+  renderResults(score, criteria, advice, examples, fileName);
 }
 
-function renderResults(score, criteria, advice, fileName) {
+function renderResults(score, criteria, advice, examples, fileName) {
   spinner.style.display = 'none';
   document.getElementById('hero').style.display = 'none';
   document.getElementById('features').style.display = 'none';
@@ -707,7 +901,7 @@ function renderResults(score, criteria, advice, fileName) {
     ? ['CV solide face aux ATS ✅', 'Votre CV a de très bonnes chances de passer les filtres automatiques. Peaufinez les derniers détails ci-dessous.']
     : score >= 50
     ? ['Peut mieux faire ⚠️', 'Votre CV passe partiellement les filtres ATS. Quelques ajustements ciblés peuvent nettement améliorer votre score.']
-    : ['Risque élevé de rejet automatique ❌', 'En l\'état, votre CV risque d\'être écarté avant lecture humaine. Suivez les conseils prioritaires ci-dessous.'];
+    : ['Risque élevé de rejet automatique ❌', "En l'état, votre CV risque d'être écarté avant lecture humaine. Suivez les conseils prioritaires ci-dessous."];
   document.getElementById('verdictTitle').textContent = titles[0];
   document.getElementById('verdictText').textContent = titles[1];
 
@@ -725,6 +919,25 @@ function renderResults(score, criteria, advice, fileName) {
   setTimeout(() => {
     document.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w + '%'; });
   }, 100);
+
+  /* Exemples avant/après tirés du CV */
+  const exCard = document.getElementById('exCard');
+  const exEl = document.getElementById('examples');
+  exEl.innerHTML = '';
+  if (examples.length) {
+    exCard.style.display = 'block';
+    examples.forEach(ex => {
+      const div = document.createElement('div');
+      div.className = 'example';
+      div.innerHTML =
+        '<div class="before"><span class="lbl">✗ Dans votre CV</span>' + escapeHtml(ex.before) + '</div>' +
+        '<div class="after"><span class="lbl">✓ Version optimisée ATS</span>' + escapeHtml(ex.after) + '</div>' +
+        '<div class="why">' + escapeHtml(ex.why) + '</div>';
+      exEl.appendChild(div);
+    });
+  } else {
+    exCard.style.display = 'none';
+  }
 
   const adviceEl = document.getElementById('adviceList');
   adviceEl.innerHTML = '';
