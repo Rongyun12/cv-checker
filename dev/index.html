@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CVScore — Analysez votre CV pour les ATS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+/* ---- Garde d'accès : ne s'active que sur la version /dev/ ---- */
+(function () {
+  if (!location.pathname.includes('/dev/')) return;
+  var CODE = 'andy-dev-2026';
+  var ok = sessionStorage.getItem('cvscore_dev_ok') === '1';
+  if (!ok) {
+    var p = prompt('🔒 Version de développement — code d\'accès :');
+    if (p === CODE) { ok = true; sessionStorage.setItem('cvscore_dev_ok', '1'); }
+  }
+  if (ok) { document.documentElement.classList.add('dev'); }
+  else { location.replace('https://rongyun12.github.io/cv-checker/'); }
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+  :root {
+    --navy: #0e1a3a;
+    --navy-soft: #3c4763;
+    --gold: #c9a227;
+    --gold-light: #e6c860;
+    --bg: #ffffff;
+    --bg-soft: #f7f8fb;
+    --border: #e9ecf2;
+    --green: #17a05e;
+    --orange: #e8912d;
+    --red: #d9483b;
+    --radius: 16px;
+    --shadow: 0 6px 30px rgba(14, 26, 58, 0.07);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Nav ---- */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 6vw;
+    position: sticky;
+    top: 0;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 50;
+  }
+  .logo {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--gold); }
+  .nav-cta {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+  }
+  .nav-cta:hover { opacity: 0.85; }
+
+  /* ---- Hero ---- */
+  .hero {
+    text-align: center;
+    padding: 90px 6vw 60px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    color: var(--navy-soft);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 999px;
+    margin-bottom: 24px;
+  }
+  .badge b { color: var(--gold); }
+  h1 {
+    font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.12;
+    margin-bottom: 20px;
+  }
+  h1 .accent {
+    background: linear-gradient(100deg, var(--gold), var(--gold-light));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    color: var(--navy-soft);
+    font-size: 1.12rem;
+    max-width: 620px;
+    margin: 0 auto 36px;
+  }
+
+  /* ---- Dropzone ---- */
+  .dropzone {
+    max-width: 640px;
+    margin: 0 auto;
+    border: 2px dashed #d3d9e5;
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+    padding: 48px 28px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--gold);
+    background: #fdfaf1;
+    transform: translateY(-2px);
+  }
+  .dropzone .icon { font-size: 2.2rem; margin-bottom: 10px; }
+  .dropzone .main-line { font-weight: 700; font-size: 1.05rem; }
+  .dropzone .sub-line { color: var(--navy-soft); font-size: 0.85rem; margin-top: 6px; }
+  .privacy-note {
+    margin-top: 18px;
+    font-size: 0.8rem;
+    color: var(--navy-soft);
+  }
+  .privacy-note b { color: var(--green); }
+  #fileInput { display: none; }
+
+  /* ---- Job offer ---- */
+  .job-section {
+    max-width: 640px;
+    margin: 26px auto 0;
+    text-align: left;
+  }
+  .job-toggle {
+    background: none;
+    border: none;
+    color: var(--navy-soft);
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  #jobText {
+    display: none;
+    width: 100%;
+    margin-top: 12px;
+    min-height: 110px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--navy);
+    resize: vertical;
+  }
+  #jobText:focus { outline: 2px solid var(--gold-light); border-color: transparent; }
+
+  /* ---- Features ---- */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 18px;
+    padding: 40px 6vw 70px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .feature {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px;
+    box-shadow: var(--shadow);
+  }
+  .feature .emoji { font-size: 1.6rem; }
+  .feature h3 { font-size: 1rem; margin: 12px 0 6px; font-weight: 700; }
+  .feature p { font-size: 0.88rem; color: var(--navy-soft); }
+
+  /* ---- Results ---- */
+  #results { display: none; padding: 30px 4vw 90px; max-width: 1240px; margin: 0 auto; }
+  .results-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 34px;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 38px;
+    margin-bottom: 26px;
+  }
+  .gauge-wrap { position: relative; width: 170px; height: 170px; flex-shrink: 0; margin: 0 auto; }
+  .gauge-wrap svg { transform: rotate(-90deg); }
+  .gauge-bg { fill: none; stroke: var(--bg-soft); stroke-width: 14; }
+  .gauge-fill {
+    fill: none;
+    stroke-width: 14;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1.2s cubic-bezier(.25,.8,.25,1);
+  }
+  .gauge-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .gauge-center .score { font-size: 2.6rem; font-weight: 800; letter-spacing: -1px; }
+  .gauge-center .outof { font-size: 0.8rem; color: var(--navy-soft); }
+  .verdict { flex: 1; min-width: 240px; }
+  .verdict h2 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .verdict p { color: var(--navy-soft); font-size: 0.95rem; }
+  .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 0.8rem;
+    color: var(--navy-soft);
+    margin-bottom: 14px;
+  }
+  .btn-restart {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 9px 20px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--navy);
+    cursor: pointer;
+    margin-top: 16px;
+  }
+  .btn-restart:hover { background: var(--bg-soft); }
+
+  .grid-main {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .grid-main { grid-template-columns: 1fr; } }
+  .right-col { display: flex; flex-direction: column; gap: 26px; }
+
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 30px;
+  }
+  .card h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---- CV preview ---- */
+  .preview-card { position: sticky; top: 90px; }
+  @media (max-width: 980px) { .preview-card { position: static; } }
+  #cvPreview { max-height: 72vh; overflow-y: auto; border-radius: 10px; }
+  #cvPreview canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(14,26,58,0.08);
+  }
+  .docx-preview, .txt-preview {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    box-shadow: 0 2px 12px rgba(14,26,58,0.08);
+  }
+  .docx-preview h1, .docx-preview h2, .docx-preview h3 { font-size: 0.9rem; margin: 8px 0 4px; }
+  .docx-preview p, .docx-preview li { margin-bottom: 4px; }
+  .txt-preview { white-space: pre-wrap; font-family: 'Courier New', monospace; }
+
+  .criterion { margin-bottom: 16px; }
+  .criterion .row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .criterion .row .pts { color: var(--navy-soft); font-weight: 500; }
+  .bar {
+    height: 8px;
+    background: var(--bg-soft);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    width: 0%;
+    transition: width 1s cubic-bezier(.25,.8,.25,1);
+  }
+
+  .advice { list-style: none; }
+  .advice li {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bg-soft);
+    font-size: 0.9rem;
+  }
+  .advice li:last-child { border-bottom: none; }
+  .advice .tag {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    height: fit-content;
+    margin-top: 2px;
+  }
+  .tag.high { background: #fdecea; color: var(--red); }
+  .tag.med { background: #fdf3e3; color: var(--orange); }
+  .tag.low { background: #e8f6ef; color: var(--green); }
+  .advice b { font-weight: 700; }
+  .advice .detail { color: var(--navy-soft); }
+
+  /* ---- Examples before/after ---- */
+  .example { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--bg-soft); }
+  .example:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .example .before, .example .after {
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+  }
+  .example .before {
+    background: #fdecea;
+    color: #7c2d25;
+  }
+  .example .after {
+    background: #e8f6ef;
+    color: #0e5b38;
+  }
+  .example .lbl {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 3px;
+    opacity: 0.7;
+  }
+  .example .why { font-size: 0.78rem; color: var(--navy-soft); }
+
+  /* ---- Line review ---- */
+  .line-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bg-soft);
+    font-size: 0.86rem;
+  }
+  .line-item:last-child { border-bottom: none; }
+  .line-item .line-text { color: var(--navy); margin-bottom: 6px; }
+  .line-item .flags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .flag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .flag.bad { background: #fdecea; color: var(--red); }
+  .flag.warn { background: #fdf3e3; color: var(--orange); }
+  .flag.ok { background: #e8f6ef; color: var(--green); }
+  .review-summary {
+    font-size: 0.82rem;
+    color: var(--navy-soft);
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    background: var(--bg-soft);
+    border-radius: 10px;
+  }
+
+  /* ---- Entreprises cibles ---- */
+  .sector-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin: 16px 0 10px;
+    color: var(--navy);
+  }
+  .companies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+  }
+  .company {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #fff;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .company:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .company img {
+    width: 36px; height: 36px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .company span { font-size: 0.8rem; font-weight: 600; line-height: 1.25; }
+
+  /* ---- Modal « pas un CV » ---- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 26, 58, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-card {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(14, 26, 58, 0.25);
+    padding: 38px 34px;
+    max-width: 440px;
+    text-align: center;
+    animation: popIn 0.25s cubic-bezier(.25,.8,.25,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-card .emoji { font-size: 2.4rem; margin-bottom: 12px; }
+  .modal-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; }
+  .modal-card p { font-size: 0.9rem; color: var(--navy-soft); margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 11px 24px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 11px 24px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--navy);
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--bg-soft); }
+
+  .keywords-box { margin-top: 4px; }
+  .kw {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin: 0 6px 8px 0;
+  }
+  .kw.found { background: #e8f6ef; color: var(--green); }
+  .kw.missing { background: #fdecea; color: var(--red); }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--navy-soft);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+  }
+  .spinner {
+    display: none;
+    margin: 26px auto 0;
+    width: 34px; height: 34px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg {
+    display: none;
+    max-width: 640px;
+    margin: 18px auto 0;
+    background: #fdecea;
+    color: var(--red);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 0.88rem;
+  }
+  /* Badge visible uniquement sur la version /dev/ */
+  html.dev body::after {
+    content: '🧪 VERSION DEV — non publique';
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    background: var(--red);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 9px 16px;
+    border-radius: 999px;
+    z-index: 300;
+    box-shadow: 0 6px 20px rgba(217, 72, 59, 0.4);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">CV<span>Score</span></div>
+  <button class="nav-cta" onclick="document.getElementById('fileInput').click()">Analyser mon CV</button>
+</nav>
+
+<section class="hero" id="hero">
+  <div class="badge">✨ Analyse <b>100 % locale</b> — votre CV ne quitte jamais votre appareil</div>
+  <h1>Votre CV passe-t-il le filtre<br>des <span class="accent">robots ATS</span> ?</h1>
+  <p>75 % des CV sont écartés par des logiciels avant même d'être lus par un recruteur.
+     Obtenez votre score ATS en quelques secondes et des conseils concrets pour le faire passer.</p>
+
+  <div class="dropzone" id="dropzone">
+    <div class="icon">📄</div>
+    <div class="main-line">Glissez votre CV ici ou cliquez pour le choisir</div>
+    <div class="sub-line">PDF, DOCX ou TXT — Français ou Anglais</div>
+  </div>
+  <input type="file" id="fileInput" accept=".pdf,.docx,.txt">
+  <div class="spinner" id="spinner"></div>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="job-section">
+    <button class="job-toggle" id="jobToggle">+ Coller l'offre d'emploi visée (optionnel, améliore l'analyse des mots-clés)</button>
+    <textarea id="jobText" placeholder="Collez ici le texte de l'offre d'emploi…"></textarea>
+  </div>
+
+  <p class="privacy-note">🔒 <b>Confidentialité totale :</b> l'analyse s'exécute dans votre navigateur, aucune donnée n'est envoyée sur un serveur.</p>
+</section>
+
+<section class="features" id="features">
+  <div class="feature"><div class="emoji">🤖</div><h3>Critères ATS réels</h3><p>Structure, sections, format des dates, lisibilité machine : les mêmes points que vérifient Workday, Taleo ou SuccessFactors.</p></div>
+  <div class="feature"><div class="emoji">🔎</div><h3>Exemples personnalisés</h3><p>Des reformulations avant/après tirées directement des phrases de votre CV.</p></div>
+  <div class="feature"><div class="emoji">📊</div><h3>Score détaillé</h3><p>Une note globale sur 100, décomposée par critère, avec l'aperçu de votre CV en regard.</p></div>
+  <div class="feature"><div class="emoji">🎯</div><h3>Matching d'offre</h3><p>Collez une offre d'emploi : nous comparons vos mots-clés à ceux attendus par le recruteur.</p></div>
+</section>
+
+<section id="results">
+  <div class="results-header">
+    <div class="gauge-wrap">
+      <svg width="170" height="170" viewBox="0 0 170 170">
+        <circle class="gauge-bg" cx="85" cy="85" r="74"></circle>
+        <circle class="gauge-fill" id="gaugeFill" cx="85" cy="85" r="74"></circle>
+      </svg>
+      <div class="gauge-center">
+        <div class="score" id="scoreNum">0</div>
+        <div class="outof">/ 100</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <div class="file-chip" id="fileChip">📄 cv.pdf</div>
+      <h2 id="verdictTitle">—</h2>
+      <p id="verdictText">—</p>
+      <button class="btn-restart" onclick="location.reload()">↻ Analyser un autre CV</button>
+    </div>
+  </div>
+
+  <div class="grid-main">
+    <div class="card preview-card">
+      <h3>📄 Aperçu de votre CV</h3>
+      <div id="cvPreview"></div>
+    </div>
+
+    <div class="right-col">
+      <div class="card">
+        <h3>📊 Détail par critère</h3>
+        <div id="criteria"></div>
+      </div>
+
+      <div class="card" id="reviewCard" style="display:none;">
+        <h3>🧐 Revue ligne par ligne de votre CV</h3>
+        <div class="review-summary" id="reviewSummary"></div>
+        <div id="lineReview"></div>
+      </div>
+
+      <div class="card" id="exCard" style="display:none;">
+        <h3>🔎 Reformulations proposées (tirées de votre CV)</h3>
+        <div id="examples"></div>
+      </div>
+
+      <div class="card">
+        <h3>💡 Conseils prioritaires</h3>
+        <ul class="advice" id="adviceList"></ul>
+      </div>
+
+      <div class="card" id="kwCard" style="display:none;">
+        <h3>🎯 Mots-clés de l'offre d'emploi</h3>
+        <div class="keywords-box" id="kwBox"></div>
+      </div>
+
+      <div class="card" id="companiesCard" style="display:none;">
+        <h3>🏢 Entreprises où ce CV peut postuler</h3>
+        <div class="review-summary" id="companiesIntro"></div>
+        <div id="companiesZone"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="modal-backdrop" id="notCvModal">
+  <div class="modal-card">
+    <div class="emoji">🤔</div>
+    <h3>Ce document ne ressemble pas à un CV</h3>
+    <p id="notCvReason">Nous n'avons pas trouvé les éléments habituels d'un CV (coordonnées, expériences, formation…). Chargez votre CV au format PDF, DOCX ou TXT pour obtenir une analyse pertinente.</p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnPickAnother">Choisir un autre fichier</button>
+      <button class="btn-ghost" id="btnAnalyzeAnyway">Analyser quand même</button>
+    </div>
+  </div>
+</div>
+
+<footer>CVScore v10 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const spinner = document.getElementById('spinner');
+const errorMsg = document.getElementById('errorMsg');
+
+document.getElementById('jobToggle').addEventListener('click', () => {
+  const t = document.getElementById('jobText');
+  t.style.display = t.style.display === 'block' ? 'none' : 'block';
+  if (t.style.display === 'block') t.focus();
+});
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.style.display = 'block';
+  spinner.style.display = 'none';
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function handleFile(file) {
+  errorMsg.style.display = 'none';
+  spinner.style.display = 'block';
+  const previewEl = document.getElementById('cvPreview');
+  previewEl.innerHTML = '';
+  try {
+    let text = '';
+    let lines = [];
+    let pageCount = 1;
+    const name = file.name.toLowerCase();
+
+    if (name.endsWith('.pdf')) {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      pageCount = pdf.numPages;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+
+        /* Rendu visuel */
+        if (i <= 3) {
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          previewEl.appendChild(canvas);
+        }
+
+        /* Extraction ligne par ligne avec métadonnées de police (taille, gras, italique) */
+        const content = await page.getTextContent();
+        const styles = content.styles || {};
+        const rows = {};
+        content.items.forEach(it => {
+          if (!it.str.trim()) return;
+          const y = Math.round(it.transform[5] / 3) * 3;
+          (rows[y] = rows[y] || []).push(it);
+        });
+        Object.keys(rows).map(Number).sort((a, b) => b - a).forEach(y => {
+          const items = rows[y].sort((a, b) => a.transform[4] - b.transform[4]);
+          const line = items.map(t => t.str).join(' ').replace(/\s+/g, ' ').trim();
+          if (!line) return;
+          let size = 0, bold = false, italic = false;
+          items.forEach(t => {
+            const s = Math.max(Math.abs(t.transform[3]), Math.abs(t.transform[0]));
+            if (s > size) size = s;
+            const st = styles[t.fontName] || {};
+            const fam = ((st.fontFamily || '') + ' ' + (t.fontName || '')).toLowerCase();
+            if (/bold|black|heavy|semibold|demi|medium/.test(fam)) bold = true;
+            if (/italic|oblique/.test(fam)) italic = true;
+          });
+          lines.push({ text: line, size: Math.round(size * 10) / 10, bold, italic });
+        });
+      }
+      text = lines.map(l => l.text).join('\n');
+    } else if (name.endsWith('.docx')) {
+      const buf = await file.arrayBuffer();
+      const raw = await mammoth.extractRawText({ arrayBuffer: buf });
+      text = raw.value;
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean).map(t => ({ text: t, size: null, bold: false, italic: false }));
+      pageCount = Math.max(1, Math.round(text.split(/\s+/).length / 450));
+      try {
+        const html = await mammoth.convertToHtml({ arrayBuffer: buf });
+        const div = document.createElement('div');
+        div.className = 'docx-preview';
+        div.innerHTML = html.value;
+        div.querySelectorAll('img').forEach(img => { img.style.maxWidth = '100%'; });
+        previewEl.appendChild(div);
+        /* Reconstruit les lignes depuis le HTML pour récupérer gras / titres */
+        const els = div.querySelectorAll('p, li, h1, h2, h3, h4');
+        if (els.length) {
+          lines = [];
+          els.forEach(el => {
+            const t = el.textContent.replace(/\s+/g, ' ').trim();
+            if (!t) return;
+            const isHead = /^H\d$/i.test(el.tagName);
+            const strong = el.querySelector('strong, b');
+            const boldAll = isHead || (strong && strong.textContent.trim().length >= t.length * 0.7);
+            lines.push({ text: t, size: null, bold: !!boldAll, italic: false });
+          });
+        }
+      } catch (e) { /* aperçu non bloquant */ }
+    } else if (name.endsWith('.txt')) {
+      text = await file.text();
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean).map(t => ({ text: t, size: null, bold: false, italic: false }));
+      const div = document.createElement('div');
+      div.className = 'txt-preview';
+      div.textContent = text;
+      previewEl.appendChild(div);
+    } else {
+      showError('Format non pris en charge. Utilisez un fichier PDF, DOCX ou TXT.');
+      return;
+    }
+    if (!previewEl.childElementCount) {
+      const div = document.createElement('div');
+      div.className = 'txt-preview';
+      div.textContent = "Aperçu graphique indisponible pour ce fichier — texte analysé :\n\n" + text.slice(0, 2000);
+      previewEl.appendChild(div);
+    }
+    /* Contrôle : est-ce bien un CV ? Sinon, pop-up avec arrière-plan flouté */
+    if (!isLikelyCV(text, file.name)) {
+      spinner.style.display = 'none';
+      pendingAnalysis = { text, lines, name: file.name, pageCount };
+      document.getElementById('notCvModal').classList.add('open');
+      return;
+    }
+    analyze(text, lines, file.name, pageCount);
+  } catch (e) {
+    showError("Impossible de lire ce fichier : " + e.message);
+  }
+}
+
+/* ---- Boutons de la pop-up « pas un CV » ---- */
+let pendingAnalysis = null;
+document.getElementById('btnPickAnother').addEventListener('click', () => {
+  document.getElementById('notCvModal').classList.remove('open');
+  pendingAnalysis = null;
+  fileInput.value = '';
+  fileInput.click();
+});
+document.getElementById('btnAnalyzeAnyway').addEventListener('click', () => {
+  document.getElementById('notCvModal').classList.remove('open');
+  if (pendingAnalysis) {
+    spinner.style.display = 'block';
+    analyze(pendingAnalysis.text, pendingAnalysis.lines, pendingAnalysis.name, pendingAnalysis.pageCount);
+    pendingAnalysis = null;
+  }
+});
+
+/* ================== MOTEUR D'ANALYSE ATS ================== */
+
+const STOPWORDS = new Set(('le la les un une des de du et ou en au aux pour par sur dans avec sans que qui est sont a à ce cette ces son sa ses vous nous votre notre plus tout tous être avoir the a an and or of to in for with on at is are be as by from this that will you your we our').split(' '));
+
+const ACTION_VERBS_FR = ['géré','piloté','développé','créé','conçu','optimisé','analysé','dirigé','coordonné','mis en place','réalisé','augmenté','réduit','amélioré','négocié','conseillé','encadré','automatisé','structuré','élaboré','supervisé','lancé','organisé','formé','audité','modélisé','rédigé','implémenté','participé','contribué'];
+const ACTION_VERBS_EN = ['managed','led','developed','created','designed','optimized','analyzed','directed','coordinated','implemented','achieved','increased','reduced','improved','negotiated','advised','supervised','automated','structured','built','launched','organized','trained','audited','modeled','drafted','delivered','spearheaded'];
+
+const SECTIONS_FR = {
+  'expérience': ['expérience', 'expériences professionnelles', 'parcours professionnel'],
+  'formation': ['formation', 'études', 'diplômes', 'cursus'],
+  'compétences': ['compétences', 'savoir-faire', 'expertises', 'skills'],
+  'langues': ['langues']
+};
+const SECTIONS_EN = {
+  'experience': ['experience', 'work experience', 'professional experience', 'employment'],
+  'education': ['education', 'academic background', 'qualifications'],
+  'skills': ['skills', 'competencies', 'expertise', 'technical skills'],
+  'languages': ['languages']
+};
+
+/* ================== SECTEURS & ENTREPRISES CIBLES ================== */
+const SECTORS = {
+  patrimoine: {
+    label: '💼 Gestion de patrimoine & banque privée',
+    kw: ['patrimoine', 'cgp', 'cgpi', 'banque privée', 'assurance vie', 'assurance-vie', 'succession', 'placement', 'family office', 'private banking', 'wealth management', 'défiscalisation'],
+    companies: [['BNP Paribas Banque Privée','bnpparibas.com'],['Rothschild & Co','rothschildandco.com'],['UBS','ubs.com'],['Primonial','primonial.com'],['Cyrus Conseil','cyrusconseil.fr'],['AXA','axa.com']]
+  },
+  finance: {
+    label: '🏦 Finance & banque',
+    kw: ['finance', 'banque', 'marchés financiers', 'trading', 'asset management', 'portefeuille', 'm&a', 'private equity', 'analyste financier', 'bloomberg', 'salle des marchés', 'corporate finance'],
+    companies: [['BNP Paribas','bnpparibas.com'],['J.P. Morgan','jpmorgan.com'],['Société Générale','societegenerale.com'],['Amundi','amundi.com'],['Lazard','lazard.com'],['Goldman Sachs','goldmansachs.com']]
+  },
+  audit: {
+    label: '📊 Audit & expertise comptable',
+    kw: ['audit', 'comptabilité', 'comptable', 'consolidation', 'commissaire aux comptes', 'expertise comptable', 'ifrs', 'contrôle de gestion'],
+    companies: [['Deloitte','deloitte.com'],['EY','ey.com'],['KPMG','kpmg.com'],['PwC','pwc.com'],['Forvis Mazars','forvismazars.com'],['Grant Thornton','grantthornton.fr']]
+  },
+  droit: {
+    label: '⚖️ Droit & cabinets d\'avocats',
+    kw: ['droit', 'juridique', 'juriste', 'avocat', 'contentieux', 'cabinet d\'avocats', 'master droit', 'licence droit', 'tribunal', 'fiscalité', 'droit des sociétés', 'droit des affaires'],
+    companies: [['Fidal','fidal.com'],['Gide','gide.com'],['CMS Francis Lefebvre','cms.law'],['Bredin Prat','bredinprat.com'],['August Debouzy','august-debouzy.com'],['LPA Law','lpalaw.com']]
+  },
+  notariat: {
+    label: '📜 Notariat',
+    kw: ['notaire', 'notarial', 'notariat', 'acte authentique', 'office notarial', 'étude notariale', 'clerc de notaire'],
+    companies: [['Cheuvreux Notaires','cheuvreux.fr'],['Monassier & Associés','monassier.com'],['14 Pyramides Notaires','14pyramides.notaires.fr'],['Lasaygues','lasaygues.com'],['Michelez Notaires','michelez.notaires.fr'],['Victoires Notaires','victoires-notaires.fr']]
+  },
+  ingenierie: {
+    label: '🏗️ Ingénierie, industrie & énergie',
+    kw: ['ingénieur', 'ingénierie', 'mécanique', 'électronique', 'énergie', 'industrie', 'production', 'maintenance', 'bureau d\'études', 'génie civil', 'process'],
+    companies: [['TotalEnergies','totalenergies.com'],['EDF','edf.fr'],['Airbus','airbus.com'],['Safran','safran-group.com'],['Vinci','vinci.com'],['Thales','thalesgroup.com']]
+  },
+  sante: {
+    label: '🩺 Santé & pharmaceutique',
+    kw: ['santé', 'pharmaceutique', 'pharmacie', 'médical', 'clinique', 'hôpital', 'laboratoire', 'biologie', 'infirmier', 'essais cliniques'],
+    companies: [['Sanofi','sanofi.com'],['Servier','servier.com'],['Pierre Fabre','pierre-fabre.com'],['bioMérieux','biomerieux.com'],['Ipsen','ipsen.com'],['Doctolib','doctolib.fr']]
+  },
+  tech: {
+    label: '💻 Tech & informatique',
+    kw: ['développeur', 'informatique', 'logiciel', 'data', 'python', 'javascript', 'cybersécurité', 'cloud', 'devops', 'intelligence artificielle', 'sql', 'fullstack'],
+    companies: [['Capgemini','capgemini.com'],['Dassault Systèmes','3ds.com'],['Sopra Steria','soprasteria.com'],['OVHcloud','ovhcloud.com'],['Criteo','criteo.com'],['Datadog','datadoghq.com']]
+  },
+  marketing: {
+    label: '📣 Commerce & marketing',
+    kw: ['marketing', 'communication', 'commercial', 'vente', 'digital', 'brand', 'réseaux sociaux', 'e-commerce', 'chef de produit'],
+    companies: [['L\'Oréal','loreal.com'],['LVMH','lvmh.com'],['Danone','danone.com'],['Publicis','publicisgroupe.com'],['Carrefour','carrefour.com'],['Decathlon','decathlon.com']]
+  }
+};
+
+function detectSectors(allText) {
+  const low = allText.toLowerCase();
+  /* Les phrases d'objectif (« je souhaite… un CDI dans votre cabinet de notaire ») pèsent plus lourd */
+  const intentMatches = low.match(/(je (souhaite|recherche|veux|désire|vise)|à la recherche d|mon objectif|objectif ?:|looking for|seeking)[^.\n]{0,140}/g) || [];
+  const intentText = intentMatches.join(' ');
+  const scores = [];
+  for (const key in SECTORS) {
+    const s = SECTORS[key];
+    let n = 0;
+    s.kw.forEach(k => {
+      n += (low.split(k).length - 1) * (k.length > 7 ? 2 : 1);
+      if (intentText.includes(k)) n += 8;
+    });
+    if (n > 0) scores.push({ key, label: s.label, companies: s.companies, n });
+  }
+  scores.sort((a, b) => b.n - a.n);
+  return scores.slice(0, 2).filter((s, i) => i === 0 || s.n >= scores[0].n * 0.55);
+}
+
+/* ================== EST-CE BIEN UN CV ? ================== */
+function isLikelyCV(text, fileName) {
+  const low = text.toLowerCase();
+  const fname = (fileName || '').toLowerCase();
+
+  /* Mots-clés de documents administratifs : sûrement PAS un CV */
+  const negative = ['attestation', 'assurance maladie', 'carte vitale', 'sécurité sociale', 'ameli',
+    "avis d'imposition", 'impôts', 'facture', 'quittance', 'relevé bancaire', 'relevé de compte',
+    'bulletin de paie', 'bulletin de salaire', 'fiche de paie', 'certificat de scolarité',
+    'contrat de bail', 'contrat de location', 'conditions générales', 'ordonnance', 'convocation',
+    'procès-verbal', 'caf ', 'crous', 'urssaf', 'notice', "mode d'emploi", 'garantie'];
+  const negHits = negative.filter(k => low.includes(k)).length;
+
+  /* Nom de fichier évocateur d'un document administratif */
+  const badName = /(attest|facture|releve|relevé|bulletin|quittance|impot|impôt|bail|ordonnance|certificat|scolarite|scolarité)/.test(fname);
+
+  /* Un CV contient une section type — signal obligatoire */
+  const hasSections = /(expérience|formation|compétences|education|experience|skills|parcours professionnel)/.test(low);
+
+  let signals = 0;
+  if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text)) signals++;
+  if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(text)) signals++;
+  if ((text.match(/(20\d{2}|19\d{2})/g) || []).length >= 2) signals++;
+  if (/(stage|alternance|diplôme|master|licence|université|baccalauréat|degree|internship|school)/.test(low)) signals++;
+
+  if (negHits >= 2) return false;
+  if ((negHits >= 1 || badName) && !hasSections) return false;
+  return hasSections && signals >= 2;
+}
+
+function detectLang(text) {
+  const t = text.toLowerCase();
+  let fr = 0, en = 0;
+  ['expérience','formation','compétences','depuis','janvier','septembre','gestion','maîtrise'].forEach(w => { if (t.includes(w)) fr++; });
+  ['experience','education','skills','since','january','september','management','proficient'].forEach(w => { if (t.includes(w)) en++; });
+  return fr >= en ? 'fr' : 'en';
+}
+
+/* ---- Fusion des retours à la ligne (une phrase coupée ≠ deux puces) ---- */
+function mergeWrappedLines(lines) {
+  const merged = [];
+  const bulletRe = /^[-–—•▪●➤➔*·o]\s/;
+  for (const item of lines) {
+    const l = item.text.trim();
+    if (!l) continue;
+    const prev = merged.length ? merged[merged.length - 1] : null;
+    const startsLower = /^[a-zà-ÿ]/.test(l);
+    const startsConnector = /^(et |ou |de |d'|du |des |à |au |aux |en |pour |avec |dans |sur |and |of |to |in |for |with )/i.test(l);
+    const prevDangling = prev && (/[,;:]$/.test(prev.text) || /\b(de|d'|du|des|et|ou|à|au|aux|en|pour|avec|dans|sur|the|of|and|to|in|for|with)$/i.test(prev.text));
+    const prevEndsSentence = prev && /[.!?…]$/.test(prev.text);
+    /* Une différence de taille de police = changement de bloc (titre → texte), on ne fusionne pas */
+    const sizeBreak = prev && prev.size && item.size && Math.abs(prev.size - item.size) > 0.8;
+    const styleBreak = prev && (prev.bold !== item.bold);
+    if (prev && !sizeBreak && !styleBreak && !bulletRe.test(l) && !prevEndsSentence &&
+        (startsLower || startsConnector || prevDangling) &&
+        (prev.text.length + l.length) < 400) {
+      prev.text = prev.text + ' ' + l;
+    } else {
+      merged.push({ text: l, size: item.size, bold: item.bold, italic: item.italic });
+    }
+  }
+  return merged;
+}
+
+/* ---- Taille de police du corps de texte (la plus fréquente, pondérée par longueur) ---- */
+function computeBodySize(lines) {
+  const freq = {};
+  lines.forEach(it => {
+    if (it.size) {
+      const k = Math.round(it.size);
+      freq[k] = (freq[k] || 0) + it.text.length;
+    }
+  });
+  let best = null, bestN = 0;
+  for (const k in freq) {
+    if (freq[k] > bestN) { bestN = freq[k]; best = Number(k); }
+  }
+  return best;
+}
+
+/* ---- Ligne « titre » : société, intitulé de poste, dates — exclue de la revue ---- */
+function isHeadingLine(item, bodySize, lang) {
+  const l = item.text.trim();
+  if (item.bold) return true;
+  if (item.size && bodySize && item.size >= bodySize + 1) return true;
+  /* En-tête d'expérience : contient une plage de dates courte */
+  const months = /(janv|févr|mars|avril|mai|juin|juil|août|sept|oct|nov|déc|january|february|march|april|may|june|july|august|september|october|november|december)/i;
+  const hasDate = /(20\d{2}|19\d{2})/.test(l);
+  if (hasDate && (months.test(l) || /[–—]/.test(l)) && l.length < 90) return true;
+  /* Type de contrat = en-tête d'expérience */
+  if (/(stage|alternance|apprentissage|cdi|cdd|intern(ship)?|freelance)/i.test(l) && l.length < 80) return true;
+  /* Intitulé de poste court */
+  if (/^(auxiliaire|assistant|stagiaire|alternant|conseiller|chargé|vendeur|serveur|hôte|hôtesse|animateur|opérateur|apprenti|employé|caissier|équipier)/i.test(l) && l.split(/\s+/).length <= 5) return true;
+  /* Forte proportion de MAJUSCULES = nom de société / titre (ex. « SOCIÉTÉ GÉNÉRALE Sevran ») */
+  const letters = l.replace(/[^A-Za-zÀ-ÿ]/g, '');
+  const upper = letters.replace(/[^A-ZÀ-Ü]/g, '');
+  if (letters.length > 4 && upper.length / letters.length >= 0.5) return true;
+  /* Ligne courte en « Title Case » (virgules autorisées : « Société, Ville ») */
+  const ws = l.split(/\s+/);
+  if (ws.length <= 6 && !/[.;!?]/.test(l)) {
+    const caps = ws.filter(w => /^[A-ZÀ-Ü]/.test(w)).length;
+    if (caps >= Math.ceil(ws.length * 0.6)) return true;
+  }
+  return false;
+}
+
+/* ---- Détection de la section courante (expérience / formation / etc.) ---- */
+function sectionOf(l, lang) {
+  const low = l.toLowerCase().trim();
+  if (l.length > 60) return null;
+  const exp = ['expérience', 'parcours professionnel', 'experience', 'employment', 'work history', 'stages'];
+  const edu = ['formation', 'études', 'diplômes', 'cursus', 'education', 'academic'];
+  const other = ['compétences', 'skills', 'langues', 'languages', 'centres d', 'intérêts', 'hobbies', 'certifications', 'projets', 'projects', 'profil', 'à propos', 'about', 'contact'];
+  if (exp.some(t => low.startsWith(t))) return 'exp';
+  if (edu.some(t => low.startsWith(t))) return 'edu';
+  if (other.some(t => low.startsWith(t))) return 'other';
+  return null;
+}
+
+/* ---- Revue ligne par ligne ---- */
+function isContentLine(l, lang) {
+  const low = l.toLowerCase();
+  if (l.length < 28 || l.length > 300) return false;
+  if (/@|linkedin|github|http|www\.|permis [ab]/i.test(low)) return false;
+  if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(l)) return false;
+  /* Ligne de localisation « Ville, Région » */
+  if (/^[^,;:]{2,35},\s*[^,;:]{2,35}$/.test(l) && l.split(/\s+/).length <= 5 && !/\d/.test(l)) return false;
+  /* Titres de sections */
+  const titles = ['expérience','formation','compétences','langues','centres d','projets','education','experience','skills','languages','profil','à propos','about','contact','certifications'];
+  if (l.length < 40 && titles.some(t => low.startsWith(t))) return false;
+  /* Lignes trop "titre" : tout en majuscules */
+  if (l === l.toUpperCase() && l.length < 60) return false;
+  return true;
+}
+
+/* Style nominal accepté sur les CV français : « Gestion de… », « Développement de… » */
+const ACTION_NOUNS_FR = ['gestion','développement','exploitation','traitement','accompagnement','suivi','rédaction','analyse','création','organisation','mise en place','prospection','conseil','élaboration','conception','animation','pilotage','coordination','réalisation','négociation','encadrement','optimisation','modélisation','participation','contribution'];
+const ACTION_NOUNS_EN = ['management','development','analysis','creation','organization','coordination','implementation','optimization','supervision','negotiation'];
+
+function startsWithActionVerb(l, lang) {
+  const verbs = lang === 'fr' ? ACTION_VERBS_FR : ACTION_VERBS_EN;
+  const nouns = lang === 'fr' ? ACTION_NOUNS_FR : ACTION_NOUNS_EN;
+  const start = l.toLowerCase().replace(/^[-•▪●➤➔*\s]+/, '');
+  return verbs.some(v => start.startsWith(v)) || nouns.some(n => start.startsWith(n));
+}
+
+function suggestVerb(l, lang) {
+  const low = l.toLowerCase();
+  if (lang === 'fr') {
+    if (/analys|étude|data|données|reporting/.test(low)) return 'Analysé';
+    if (/client|conseil|patrimoine|rendez-vous/.test(low)) return 'Conseillé';
+    if (/gestion|portefeuille|dossier|administrat/.test(low)) return 'Géré';
+    if (/rédaction|rapport|note|synthèse|compte[- ]rendu/.test(low)) return 'Rédigé';
+    if (/organisation|événement|planning/.test(low)) return 'Organisé';
+    if (/création|développement|site|outil|modèle/.test(low)) return 'Développé';
+    if (/vente|commercial|prospection/.test(low)) return 'Développé';
+    if (/suivi|contrôle|vérification/.test(low)) return 'Assuré le suivi de';
+    if (/formation|accompagnement|tutorat/.test(low)) return 'Formé';
+    if (/négociation|contrat/.test(low)) return 'Négocié';
+    return 'Réalisé';
+  } else {
+    if (/analy|data|report/.test(low)) return 'Analyzed';
+    if (/client|advis/.test(low)) return 'Advised';
+    if (/manag|portfolio|administrat/.test(low)) return 'Managed';
+    if (/writ|draft|report/.test(low)) return 'Drafted';
+    if (/organiz|event/.test(low)) return 'Organized';
+    if (/develop|creat|build|tool/.test(low)) return 'Developed';
+    if (/sale|prospect/.test(low)) return 'Grew';
+    if (/track|monitor|control/.test(low)) return 'Monitored';
+    return 'Delivered';
+  }
+}
+
+function buildLineReview(lines, lang) {
+  const review = [];
+  const seen = new Set();
+  let currentSection = null;
+  const bodySize = computeBodySize(lines);
+  const hasExpSection = lines.some(it => sectionOf(it.text.trim(), lang) === 'exp');
+  for (const item of lines) {
+    if (review.length >= 8) break;
+    const l = item.text.trim();
+    const sec = sectionOf(l, lang);
+    if (sec) { currentSection = sec; continue; }
+    /* Les critères « verbe d'action / chiffres » ne concernent que les expériences :
+       on ignore la formation, les compétences, les langues, etc. */
+    if (hasExpSection && currentSection !== 'exp') continue;
+    /* Titres (société, poste, dates) repérés par la police (taille, gras) ou leur forme : exclus */
+    if (isHeadingLine(item, bodySize, lang)) continue;
+    if (!isContentLine(l, lang) || seen.has(l)) continue;
+    seen.add(l);
+    const flags = [];
+    const hasVerb = startsWithActionVerb(l, lang);
+    const hasNum = /\d/.test(l);
+    const firstPerson = lang === 'fr' ? /(^|\s)(je |j'ai |j'|mon |ma |mes )/i.test(l.slice(0, 25)) : /^i |^my /i.test(l);
+    if (!hasVerb) flags.push({ type: 'bad', label: lang === 'fr' ? "⚠ Pas de verbe d'action en tête" : '⚠ No leading action verb' });
+    if (!hasNum) flags.push({ type: 'warn', label: lang === 'fr' ? '⚠ Aucun chiffre / résultat mesurable' : '⚠ No measurable result' });
+    if (firstPerson) flags.push({ type: 'bad', label: lang === 'fr' ? '⚠ Première personne (« je ») à éviter' : '⚠ Avoid first person' });
+    if (l.length > 180) flags.push({ type: 'warn', label: lang === 'fr' ? '⚠ Trop longue : coupez en deux puces' : '⚠ Too long: split into two bullets' });
+    if (flags.length === 0) flags.push({ type: 'ok', label: lang === 'fr' ? '✓ Bonne ligne ATS' : '✓ ATS-friendly' });
+    review.push({ line: l, flags, score: flags.filter(f => f.type !== 'ok').length, hasVerb, hasNum });
+  }
+  /* Les lignes les plus problématiques d'abord */
+  review.sort((a, b) => b.score - a.score);
+  return review;
+}
+
+/* ---- Exemples personnalisés avant/après ---- */
+function buildExamples(lines, lang, review) {
+  const examples = [];
+  const used = new Set();
+
+  /* Seules les lignes de la section Expérience sont candidates aux reformulations :
+     ni la formation, ni les listes de matières/compétences (énumérations à virgules) */
+  const bodySize = computeBodySize(lines);
+  const hasExp = lines.some(it => sectionOf(it.text.trim(), lang) === 'exp');
+  let cur = null;
+  const eligible = [];
+  for (const item of lines) {
+    const t = item.text.trim();
+    const sec = sectionOf(t, lang);
+    if (sec) { cur = sec; continue; }
+    if (hasExp && cur !== 'exp') continue;
+    if (isHeadingLine(item, bodySize, lang)) continue;
+    if ((t.match(/,/g) || []).length >= 3) continue;
+    eligible.push(item);
+  }
+  lines = eligible;
+
+  const weakMapFr = [
+    [/^[-•▪●➤➔\s]*en charge (de la |de l'|du |des |de )/i, 'Géré '],
+    [/^[-•▪●➤➔\s]*responsable (de la |de l'|du |des |de )/i, 'Piloté '],
+    [/^[-•▪●➤➔\s]*participation (à la |à l'|au |aux |à )/i, 'Contribué à '],
+    [/^[-•▪●➤➔\s]*chargée? (de la |de l'|du |des |de )/i, 'Géré '],
+    [/^[-•▪●➤➔\s]*aide (à la |à l'|au |aux |à )/i, 'Appuyé '],
+    [/^[-•▪●➤➔\s]*suivi (de la |de l'|du |des |de )/i, 'Assuré le suivi de '],
+    [/^[-•▪●➤➔\s]*assistance (à |aux |au |dans )/i, 'Accompagné '],
+    [/^[-•▪●➤➔\s]*réalisation (de la |de l'|du |des |de )/i, 'Réalisé '],
+    [/^[-•▪●➤➔\s]*gestion (de la |de l'|du |des |de )/i, 'Géré '],
+    [/^[-•▪●➤➔\s]*rédaction (de la |de l'|du |des |de )/i, 'Rédigé '],
+    [/^[-•▪●➤➔\s]*mise en place (de la |de l'|du |des |de )/i, 'Mis en place '],
+    [/^[-•▪●➤➔\s]*travail (sur|avec) /i, 'Travaillé sur '],
+    [/^[-•▪●➤➔\s]*j'ai /i, '']
+  ];
+  const weakMapEn = [
+    [/^[-•▪●➤➔\s]*in charge of /i, 'Managed '],
+    [/^[-•▪●➤➔\s]*responsible for /i, 'Led '],
+    [/^[-•▪●➤➔\s]*participation in /i, 'Contributed to '],
+    [/^[-•▪●➤➔\s]*helped (with )?/i, 'Supported '],
+    [/^[-•▪●➤➔\s]*worked on /i, 'Delivered '],
+    [/^[-•▪●➤➔\s]*assisted (with |in )?/i, 'Supported ']
+  ];
+  const weakMap = lang === 'fr' ? weakMapFr : weakMapEn;
+
+  /* 1. Tournures faibles → verbe d'action */
+  for (const item of lines) {
+    if (examples.length >= 2) break;
+    const l = item.text.trim();
+    if (l.length < 18 || l.length > 170 || used.has(l)) continue;
+    for (const [re, verb] of weakMap) {
+      if (re.test(l)) {
+        let after = l.replace(re, verb).trim();
+        after = after.charAt(0).toUpperCase() + after.slice(1);
+        if (!/\d/.test(after)) {
+          after += lang === 'fr' ? ' [+ chiffre : volume, montant, %]' : ' [+ number: volume, amount, %]';
+        }
+        examples.push({
+          before: l,
+          after: after,
+          why: lang === 'fr'
+            ? "Un verbe d'action en tête de phrase est mieux classé par les ATS qu'une tournure descriptive."
+            : 'ATS rank action verbs higher than descriptive phrasing.'
+        });
+        used.add(l);
+        break;
+      }
+    }
+  }
+
+  /* 2. Phrases d'expérience sans chiffres → version quantifiée */
+  for (const item of lines) {
+    if (examples.length >= 4) break;
+    const l = item.text.trim();
+    if (l.length < 25 || l.length > 170 || /\d/.test(l) || used.has(l)) continue;
+    if (/(client|portefeuille|projet|équipe|dossier|budget|vente|patrimoine|reporting|analyse|étude|campagne|contrat|customer|portfolio|project|team|report)/i.test(l)) {
+      const suffix = lang === 'fr'
+        ? (/client/i.test(l) ? ' — ex. : « … pour un portefeuille de 30 clients »'
+          : /budget|montant|€/i.test(l) ? ' — ex. : « … budget de 50 k€ »'
+          : /projet|project/i.test(l) ? ' — ex. : « … 3 projets menés en parallèle »'
+          : ' — ex. : « … +15 % », « 20 dossiers/mois »')
+        : ' — e.g.: “+15%”, “30 clients”, “€50k budget”';
+      examples.push({
+        before: l,
+        after: l + suffix,
+        why: lang === 'fr'
+          ? 'Les résultats chiffrés augmentent le score de pertinence et crédibilisent la mission auprès du recruteur.'
+          : 'Quantified results boost relevance scores and credibility.'
+      });
+      used.add(l);
+    }
+  }
+
+  /* 3. Garantie : réécriture des lignes signalées par la revue, avec un verbe suggéré selon leur contenu */
+  if (review) {
+    for (const item of review) {
+      if (examples.length >= 4) break;
+      const l = item.line;
+      if (used.has(l) || item.hasVerb) continue;
+      const verb = suggestVerb(l, lang);
+      let rest = l.replace(/^[-•▪●➤➔*\s]+/, '');
+      rest = rest.charAt(0).toLowerCase() + rest.slice(1);
+      let after = verb + ' ' + rest;
+      if (!item.hasNum) {
+        after += lang === 'fr' ? ' [+ chiffre : volume, montant, %]' : ' [+ number: volume, amount, %]';
+      }
+      examples.push({
+        before: l,
+        after: after,
+        why: lang === 'fr'
+          ? "Verbe d'action suggéré d'après le contenu de la ligne — ajustez-le si un autre décrit mieux votre rôle."
+          : 'Suggested action verb based on the line content — adjust if another fits better.'
+      });
+      used.add(l);
+    }
+  }
+
+  return examples;
+}
+
+function analyze(text, lines, fileName, pageCount) {
+  lines = mergeWrappedLines(lines);
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const lower = cleaned.toLowerCase();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const lang = detectLang(cleaned);
+  const criteria = [];
+  const advice = [];
+
+  /* --- 0. CV scanné / illisible --- */
+  if (words.length < 60) {
+    spinner.style.display = 'none';
+    showError(lang === 'fr'
+      ? "Très peu de texte détecté (" + words.length + " mots). Votre CV est probablement une image scannée ou un design non lisible par les ATS — c'est un critère éliminatoire. Recréez-le dans Word ou Canva avec du vrai texte, puis exportez en PDF."
+      : "Very little text detected. Your CV is probably a scanned image — a killer for ATS. Rebuild it with real text.");
+    return;
+  }
+
+  /* --- 1. Coordonnées (15 pts) --- */
+  let contactPts = 0;
+  const hasEmail = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(cleaned);
+  const hasPhone = /(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}|\+?\d{1,3}[\s.-]?\(?\d{2,4}\)?([\s.-]?\d{2,4}){2,3}/.test(cleaned);
+  const hasLinkedIn = /linkedin\.com|linkedin/i.test(cleaned);
+  if (hasEmail) contactPts += 6; else advice.push({p:'high', t:'Ajoutez votre adresse e-mail', d:"Aucun e-mail détecté : sans lui, l'ATS ne peut pas créer votre fiche candidat."});
+  if (hasPhone) contactPts += 5; else advice.push({p:'high', t:'Ajoutez votre numéro de téléphone', d:'Format recommandé : +33 6 XX XX XX XX.'});
+  if (hasLinkedIn) contactPts += 4; else advice.push({p:'low', t:'Ajoutez votre profil LinkedIn', d:'De nombreux ATS enrichissent votre profil avec votre URL LinkedIn.'});
+  criteria.push({ name: 'Coordonnées', pts: contactPts, max: 15 });
+
+  /* --- 2. Sections standard (20 pts) --- */
+  const sections = lang === 'fr' ? SECTIONS_FR : SECTIONS_EN;
+  let secPts = 0;
+  const secMissing = [];
+  for (const [key, variants] of Object.entries(sections)) {
+    const found = variants.some(v => lower.includes(v));
+    if (found) secPts += 5; else secMissing.push(key);
+  }
+  secPts = Math.min(20, secPts);
+  if (secMissing.length) {
+    advice.push({p:'high', t:'Sections manquantes : ' + secMissing.join(', '),
+      d:"Les ATS découpent votre CV par sections aux titres standards. Utilisez exactement « Expérience professionnelle », « Formation », « Compétences », « Langues »."});
+  }
+  criteria.push({ name: 'Sections standard', pts: secPts, max: 20 });
+
+  /* --- 3. Longueur et densité (10 pts) --- */
+  let lenPts = 10;
+  if (words.length < 200) {
+    lenPts = 4;
+    advice.push({p:'med', t:'CV trop court (' + words.length + ' mots)', d:'Visez 300 à 600 mots : détaillez missions et résultats de chaque expérience.'});
+  } else if (words.length > 900) {
+    lenPts = 6;
+    advice.push({p:'med', t:'CV très dense (' + words.length + ' mots)', d:'Pour un profil étudiant/junior, 1 page suffit. Coupez les détails secondaires.'});
+  }
+  if (pageCount > 2) {
+    lenPts = Math.max(0, lenPts - 3);
+    advice.push({p:'med', t:pageCount + ' pages détectées', d:'1 page pour un junior, 2 pages maximum. Les ATS et les recruteurs privilégient la concision.'});
+  }
+  criteria.push({ name: 'Longueur', pts: lenPts, max: 10 });
+
+  /* --- 4. Verbes d'action (15 pts) --- */
+  const verbs = lang === 'fr' ? ACTION_VERBS_FR : ACTION_VERBS_EN;
+  const verbsFound = verbs.filter(v => lower.includes(v));
+  let verbPts = Math.min(15, verbsFound.length * 3);
+  if (verbsFound.length < 3) {
+    advice.push({p:'high', t:"Utilisez plus de verbes d'action", d:(lang==='fr'
+      ? "Commencez chaque mission par un verbe fort : « Géré un portefeuille de… », « Analysé… », « Optimisé… ». Seulement " + verbsFound.length + " détecté(s) — voir les exemples tirés de votre CV."
+      : "Start each bullet with a strong verb: Managed, Analyzed, Delivered…")});
+  } else if (verbsFound.length < 5) {
+    advice.push({p:'low', t:"Variez davantage vos verbes d'action", d:'Bonne base (' + verbsFound.length + ' verbes : ' + verbsFound.slice(0,4).join(', ') + '…), visez-en 6 à 8 différents.'});
+  }
+  criteria.push({ name: "Verbes d'action", pts: verbPts, max: 15 });
+
+  /* --- 5. Résultats chiffrés (15 pts) --- */
+  const numbers = cleaned.match(/\d+\s?(%|k€|K€|M€|€|k\$|\$|clients?|dossiers?|projets?|personnes?|collaborateurs?|users?)/g) || [];
+  const percents = cleaned.match(/\d+\s?%/g) || [];
+  let numPts = Math.min(15, numbers.length * 3 + percents.length * 2);
+  if (numbers.length < 2) {
+    advice.push({p:'high', t:'Quantifiez vos résultats', d:(lang==='fr'
+      ? "Les chiffres crédibilisent : « portefeuille de 40 clients », « +15 % de rendement », « budget de 50 k€ ». Presque aucun chiffre d'impact détecté — voir les exemples tirés de votre CV."
+      : 'Add measurable impact: “+15% return”, “40 clients”, “€50k budget”.')});
+  }
+  criteria.push({ name: 'Résultats chiffrés', pts: numPts, max: 15 });
+
+  /* --- 6. Lisibilité machine (15 pts) --- */
+  let readPts = 15;
+  const weirdChars = (cleaned.match(/[│◆■▪●➤➔]/g) || []).length;
+  if (weirdChars > 3) {
+    readPts -= 5;
+    advice.push({p:'med', t:'Caractères spéciaux détectés', d:'Symboles graphiques (◆ ■ │…) : certains ATS les transforment en texte illisible. Préférez des tirets simples.'});
+  }
+  const capsWords = words.filter(w => w.length > 3 && w === w.toUpperCase() && /^[A-ZÀ-Ü]+$/.test(w)).length;
+  if (capsWords > 25) {
+    readPts -= 3;
+    advice.push({p:'low', t:'Beaucoup de texte en MAJUSCULES', d:'Les majuscules systématiques compliquent l’analyse sémantique. Réservez-les aux titres de sections.'});
+  }
+  const dates = cleaned.match(/(20\d{2}|19\d{2})/g) || [];
+  if (dates.length < 2) {
+    readPts -= 4;
+    advice.push({p:'high', t:'Dates peu détectables', d:'Chaque expérience doit afficher des dates claires : « Sept. 2024 – Août 2025 » ou « 2024 – 2025 ».'});
+  }
+  readPts = Math.max(0, readPts);
+  criteria.push({ name: 'Lisibilité machine', pts: readPts, max: 15 });
+
+  /* --- 7. Mots-clés de l'offre (10 pts) ou compétences génériques --- */
+  const jobText = document.getElementById('jobText').value.trim();
+  let kwPts = 0;
+  if (jobText) {
+    const jobWords = jobText.toLowerCase().match(/[a-zà-ÿ][a-zà-ÿ+#.-]{3,}/g) || [];
+    const freq = {};
+    jobWords.forEach(w => { if (!STOPWORDS.has(w)) freq[w] = (freq[w] || 0) + 1; });
+    const topKw = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 15).map(e => e[0]);
+    const found = topKw.filter(k => lower.includes(k));
+    const missing = topKw.filter(k => !lower.includes(k));
+    kwPts = topKw.length ? Math.round((found.length / topKw.length) * 10) : 5;
+    const kwHtml = found.map(k => '<span class="kw found">✓ ' + escapeHtml(k) + '</span>').join('') +
+             missing.map(k => '<span class="kw missing">✗ ' + escapeHtml(k) + '</span>').join('');
+    if (missing.length > topKw.length / 2) {
+      advice.push({p:'high', t:"Trop peu de mots-clés de l'offre", d:'Intégrez naturellement les termes manquants (en rouge) dans vos expériences — les ATS classent par correspondance de mots-clés. Ex. : « ' + missing.slice(0,3).join(' », « ') + ' ».'});
+    }
+    document.getElementById('kwCard').style.display = 'block';
+    document.getElementById('kwBox').innerHTML = kwHtml;
+  } else {
+    const generic = lang === 'fr'
+      ? ['excel','pack office','anglais','gestion','analyse','projet','vba','python','bloomberg','powerpoint']
+      : ['excel','english','management','analysis','project','vba','python','bloomberg','powerpoint','sql'];
+    const found = generic.filter(k => lower.includes(k));
+    kwPts = Math.min(10, found.length * 2);
+    if (found.length < 3) {
+      advice.push({p:'med', t:'Peu de compétences techniques identifiables', d:"Listez explicitement vos outils : Excel, VBA, Python, Bloomberg, Pack Office, niveau d'anglais…"});
+    }
+    document.getElementById('kwCard').style.display = 'none';
+  }
+  criteria.push({ name: jobText ? "Matching offre d'emploi" : 'Compétences clés', pts: kwPts, max: 10 });
+
+  /* --- Revue ligne par ligne + exemples personnalisés --- */
+  const review = buildLineReview(lines, lang);
+  const examples = buildExamples(lines, lang, review);
+
+  /* --- Secteur(s) visé(s) et entreprises cibles --- */
+  const sectors = detectSectors(cleaned + ' ' + jobText);
+
+  /* --- Score final --- */
+  const total = criteria.reduce((s, c) => s + c.pts, 0);
+  const max = criteria.reduce((s, c) => s + c.max, 0);
+  const score = Math.round((total / max) * 100);
+
+  if (advice.length === 0) {
+    advice.push({p:'low', t:'Excellent travail !', d:'Votre CV coche tous les critères ATS analysés. Adaptez les mots-clés à chaque offre pour maximiser vos chances.'});
+  }
+  const prio = { high: 0, med: 1, low: 2 };
+  advice.sort((a, b) => prio[a.p] - prio[b.p]);
+
+  renderResults(score, criteria, advice, examples, review, sectors, fileName, lang);
+}
+
+function renderResults(score, criteria, advice, examples, review, sectors, fileName, lang) {
+  spinner.style.display = 'none';
+  document.getElementById('hero').style.display = 'none';
+  document.getElementById('features').style.display = 'none';
+  const results = document.getElementById('results');
+  results.style.display = 'block';
+  window.scrollTo({ top: 0 });
+
+  document.getElementById('fileChip').textContent = '📄 ' + fileName;
+
+  const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
+  const gauge = document.getElementById('gaugeFill');
+  const circumference = 2 * Math.PI * 74;
+  gauge.style.stroke = color;
+  gauge.style.strokeDasharray = circumference;
+  gauge.style.strokeDashoffset = circumference;
+  requestAnimationFrame(() => {
+    setTimeout(() => { gauge.style.strokeDashoffset = circumference * (1 - score / 100); }, 60);
+  });
+
+  let n = 0;
+  const scoreNum = document.getElementById('scoreNum');
+  scoreNum.style.color = color;
+  const interval = setInterval(() => {
+    n += Math.max(1, Math.round(score / 40));
+    if (n >= score) { n = score; clearInterval(interval); }
+    scoreNum.textContent = n;
+  }, 25);
+
+  const titles = score >= 75
+    ? ['CV solide face aux ATS ✅', 'Votre CV a de très bonnes chances de passer les filtres automatiques. Peaufinez les derniers détails ci-dessous.']
+    : score >= 50
+    ? ['Peut mieux faire ⚠️', 'Votre CV passe partiellement les filtres ATS. Quelques ajustements ciblés peuvent nettement améliorer votre score.']
+    : ['Risque élevé de rejet automatique ❌', "En l'état, votre CV risque d'être écarté avant lecture humaine. Suivez les conseils prioritaires ci-dessous."];
+  document.getElementById('verdictTitle').textContent = titles[0];
+  document.getElementById('verdictText').textContent = titles[1];
+
+  const critEl = document.getElementById('criteria');
+  critEl.innerHTML = '';
+  criteria.forEach(c => {
+    const pct = Math.round((c.pts / c.max) * 100);
+    const barColor = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+    const div = document.createElement('div');
+    div.className = 'criterion';
+    div.innerHTML = '<div class="row"><span>' + c.name + '</span><span class="pts">' + c.pts + ' / ' + c.max + '</span></div>' +
+      '<div class="bar"><div class="bar-fill" style="background:' + barColor + '" data-w="' + pct + '"></div></div>';
+    critEl.appendChild(div);
+  });
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w + '%'; });
+  }, 100);
+
+  /* Revue ligne par ligne */
+  const reviewCard = document.getElementById('reviewCard');
+  const reviewEl = document.getElementById('lineReview');
+  const reviewSummary = document.getElementById('reviewSummary');
+  reviewEl.innerHTML = '';
+  if (review.length) {
+    reviewCard.style.display = 'block';
+    const nOk = review.filter(r => r.score === 0).length;
+    const nBad = review.length - nOk;
+    reviewSummary.textContent = (lang === 'fr')
+      ? review.length + ' lignes de contenu analysées : ' + nOk + ' conforme(s) ATS, ' + nBad + ' à améliorer (les plus problématiques en premier).'
+      : review.length + ' content lines analyzed: ' + nOk + ' ATS-friendly, ' + nBad + ' to improve.';
+    review.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'line-item';
+      div.innerHTML = '<div class="line-text">« ' + escapeHtml(item.line) + ' »</div>' +
+        '<div class="flags">' + item.flags.map(f => '<span class="flag ' + f.type + '">' + escapeHtml(f.label) + '</span>').join('') + '</div>';
+      reviewEl.appendChild(div);
+    });
+  } else {
+    reviewCard.style.display = 'none';
+  }
+
+  /* Exemples avant/après tirés du CV */
+  const exCard = document.getElementById('exCard');
+  const exEl = document.getElementById('examples');
+  exEl.innerHTML = '';
+  if (examples.length) {
+    exCard.style.display = 'block';
+    examples.forEach(ex => {
+      const div = document.createElement('div');
+      div.className = 'example';
+      div.innerHTML =
+        '<div class="before"><span class="lbl">✗ Dans votre CV</span>' + escapeHtml(ex.before) + '</div>' +
+        '<div class="after"><span class="lbl">✓ Version optimisée ATS</span>' + escapeHtml(ex.after) + '</div>' +
+        '<div class="why">' + escapeHtml(ex.why) + '</div>';
+      exEl.appendChild(div);
+    });
+  } else {
+    exCard.style.display = 'none';
+  }
+
+  const adviceEl = document.getElementById('adviceList');
+  adviceEl.innerHTML = '';
+  const labels = { high: 'PRIORITÉ', med: 'IMPORTANT', low: 'BONUS' };
+  advice.forEach(a => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="tag ' + a.p + '">' + labels[a.p] + '</span><div><b>' + a.t + '</b><div class="detail">' + a.d + '</div></div>';
+    adviceEl.appendChild(li);
+  });
+
+  /* Entreprises cibles selon le secteur détecté */
+  const compCard = document.getElementById('companiesCard');
+  const compZone = document.getElementById('companiesZone');
+  const compIntro = document.getElementById('companiesIntro');
+  compZone.innerHTML = '';
+  if (sectors && sectors.length) {
+    compCard.style.display = 'block';
+    compIntro.textContent = score >= 75
+      ? 'Votre CV a le niveau ATS pour candidater dans ce type d\'entreprises :'
+      : score >= 50
+      ? 'Après les corrections prioritaires ci-dessus, ce CV pourra viser ce type d\'entreprises :'
+      : 'Objectif une fois le CV optimisé — voici le type d\'entreprises correspondant à votre profil :';
+    sectors.forEach(sec => {
+      const title = document.createElement('div');
+      title.className = 'sector-title';
+      title.textContent = sec.label;
+      compZone.appendChild(title);
+      const grid = document.createElement('div');
+      grid.className = 'companies-grid';
+      sec.companies.forEach(([nameC, domain]) => {
+        const div = document.createElement('div');
+        div.className = 'company';
+        const img = document.createElement('img');
+        img.src = 'https://logo.clearbit.com/' + domain + '?size=80';
+        img.alt = nameC;
+        img.loading = 'lazy';
+        img.onerror = function () {
+          this.onerror = null;
+          this.src = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=64';
+        };
+        const span = document.createElement('span');
+        span.textContent = nameC;
+        div.appendChild(img);
+        div.appendChild(span);
+        grid.appendChild(div);
+      });
+      compZone.appendChild(grid);
+    });
+  } else {
+    compCard.style.display = 'none';
+  }
+}
+</script>
+</body>
+</html>
