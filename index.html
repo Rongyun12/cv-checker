@@ -398,6 +398,94 @@
     border-radius: 10px;
   }
 
+  /* ---- Entreprises cibles ---- */
+  .sector-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin: 16px 0 10px;
+    color: var(--navy);
+  }
+  .companies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+  }
+  .company {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #fff;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .company:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .company img {
+    width: 36px; height: 36px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .company span { font-size: 0.8rem; font-weight: 600; line-height: 1.25; }
+
+  /* ---- Modal « pas un CV » ---- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 26, 58, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-card {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(14, 26, 58, 0.25);
+    padding: 38px 34px;
+    max-width: 440px;
+    text-align: center;
+    animation: popIn 0.25s cubic-bezier(.25,.8,.25,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-card .emoji { font-size: 2.4rem; margin-bottom: 12px; }
+  .modal-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; }
+  .modal-card p { font-size: 0.9rem; color: var(--navy-soft); margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 11px 24px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 11px 24px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--navy);
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--bg-soft); }
+
   .keywords-box { margin-top: 4px; }
   .kw {
     display: inline-block;
@@ -528,11 +616,29 @@
         <h3>🎯 Mots-clés de l'offre d'emploi</h3>
         <div class="keywords-box" id="kwBox"></div>
       </div>
+
+      <div class="card" id="companiesCard" style="display:none;">
+        <h3>🏢 Entreprises où ce CV peut postuler</h3>
+        <div class="review-summary" id="companiesIntro"></div>
+        <div id="companiesZone"></div>
+      </div>
     </div>
   </div>
 </section>
 
-<footer>CVScore v5 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<div class="modal-backdrop" id="notCvModal">
+  <div class="modal-card">
+    <div class="emoji">🤔</div>
+    <h3>Ce document ne ressemble pas à un CV</h3>
+    <p id="notCvReason">Nous n'avons pas trouvé les éléments habituels d'un CV (coordonnées, expériences, formation…). Chargez votre CV au format PDF, DOCX ou TXT pour obtenir une analyse pertinente.</p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnPickAnother">Choisir un autre fichier</button>
+      <button class="btn-ghost" id="btnAnalyzeAnyway">Analyser quand même</button>
+    </div>
+  </div>
+</div>
+
+<footer>CVScore v6 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -668,11 +774,35 @@ async function handleFile(file) {
       div.textContent = "Aperçu graphique indisponible pour ce fichier — texte analysé :\n\n" + text.slice(0, 2000);
       previewEl.appendChild(div);
     }
+    /* Contrôle : est-ce bien un CV ? Sinon, pop-up avec arrière-plan flouté */
+    if (!isLikelyCV(text)) {
+      spinner.style.display = 'none';
+      pendingAnalysis = { text, lines, name: file.name, pageCount };
+      document.getElementById('notCvModal').classList.add('open');
+      return;
+    }
     analyze(text, lines, file.name, pageCount);
   } catch (e) {
     showError("Impossible de lire ce fichier : " + e.message);
   }
 }
+
+/* ---- Boutons de la pop-up « pas un CV » ---- */
+let pendingAnalysis = null;
+document.getElementById('btnPickAnother').addEventListener('click', () => {
+  document.getElementById('notCvModal').classList.remove('open');
+  pendingAnalysis = null;
+  fileInput.value = '';
+  fileInput.click();
+});
+document.getElementById('btnAnalyzeAnyway').addEventListener('click', () => {
+  document.getElementById('notCvModal').classList.remove('open');
+  if (pendingAnalysis) {
+    spinner.style.display = 'block';
+    analyze(pendingAnalysis.text, pendingAnalysis.lines, pendingAnalysis.name, pendingAnalysis.pageCount);
+    pendingAnalysis = null;
+  }
+});
 
 /* ================== MOTEUR D'ANALYSE ATS ================== */
 
@@ -693,6 +823,86 @@ const SECTIONS_EN = {
   'skills': ['skills', 'competencies', 'expertise', 'technical skills'],
   'languages': ['languages']
 };
+
+/* ================== SECTEURS & ENTREPRISES CIBLES ================== */
+const SECTORS = {
+  patrimoine: {
+    label: '💼 Gestion de patrimoine & banque privée',
+    kw: ['patrimoine', 'cgp', 'cgpi', 'banque privée', 'assurance vie', 'assurance-vie', 'succession', 'placement', 'family office', 'private banking', 'wealth management', 'défiscalisation'],
+    companies: [['BNP Paribas Banque Privée','bnpparibas.com'],['Rothschild & Co','rothschildandco.com'],['UBS','ubs.com'],['Primonial','primonial.com'],['Cyrus Conseil','cyrusconseil.fr'],['AXA','axa.com']]
+  },
+  finance: {
+    label: '🏦 Finance & banque',
+    kw: ['finance', 'banque', 'marchés financiers', 'trading', 'asset management', 'portefeuille', 'm&a', 'private equity', 'analyste financier', 'bloomberg', 'salle des marchés', 'corporate finance'],
+    companies: [['BNP Paribas','bnpparibas.com'],['J.P. Morgan','jpmorgan.com'],['Société Générale','societegenerale.com'],['Amundi','amundi.com'],['Lazard','lazard.com'],['Goldman Sachs','goldmansachs.com']]
+  },
+  audit: {
+    label: '📊 Audit & expertise comptable',
+    kw: ['audit', 'comptabilité', 'comptable', 'consolidation', 'commissaire aux comptes', 'expertise comptable', 'ifrs', 'contrôle de gestion'],
+    companies: [['Deloitte','deloitte.com'],['EY','ey.com'],['KPMG','kpmg.com'],['PwC','pwc.com'],['Forvis Mazars','forvismazars.com'],['Grant Thornton','grantthornton.fr']]
+  },
+  droit: {
+    label: '⚖️ Droit & cabinets d\'avocats',
+    kw: ['droit', 'juridique', 'juriste', 'avocat', 'contentieux', 'cabinet d\'avocats', 'master droit', 'licence droit', 'tribunal', 'fiscalité', 'droit des sociétés', 'droit des affaires'],
+    companies: [['Fidal','fidal.com'],['Gide','gide.com'],['CMS Francis Lefebvre','cms.law'],['Bredin Prat','bredinprat.com'],['August Debouzy','august-debouzy.com'],['LPA Law','lpalaw.com']]
+  },
+  notariat: {
+    label: '📜 Notariat',
+    kw: ['notaire', 'notarial', 'notariat', 'acte authentique', 'office notarial', 'étude notariale', 'clerc de notaire'],
+    companies: [['Cheuvreux Notaires','cheuvreux.fr'],['Monassier & Associés','monassier.com'],['14 Pyramides Notaires','14pyramides.notaires.fr'],['Lasaygues','lasaygues.com'],['Michelez Notaires','michelez.notaires.fr'],['Victoires Notaires','victoires-notaires.fr']]
+  },
+  ingenierie: {
+    label: '🏗️ Ingénierie, industrie & énergie',
+    kw: ['ingénieur', 'ingénierie', 'mécanique', 'électronique', 'énergie', 'industrie', 'production', 'maintenance', 'bureau d\'études', 'génie civil', 'process'],
+    companies: [['TotalEnergies','totalenergies.com'],['EDF','edf.fr'],['Airbus','airbus.com'],['Safran','safran-group.com'],['Vinci','vinci.com'],['Thales','thalesgroup.com']]
+  },
+  sante: {
+    label: '🩺 Santé & pharmaceutique',
+    kw: ['santé', 'pharmaceutique', 'pharmacie', 'médical', 'clinique', 'hôpital', 'laboratoire', 'biologie', 'infirmier', 'essais cliniques'],
+    companies: [['Sanofi','sanofi.com'],['Servier','servier.com'],['Pierre Fabre','pierre-fabre.com'],['bioMérieux','biomerieux.com'],['Ipsen','ipsen.com'],['Doctolib','doctolib.fr']]
+  },
+  tech: {
+    label: '💻 Tech & informatique',
+    kw: ['développeur', 'informatique', 'logiciel', 'data', 'python', 'javascript', 'cybersécurité', 'cloud', 'devops', 'intelligence artificielle', 'sql', 'fullstack'],
+    companies: [['Capgemini','capgemini.com'],['Dassault Systèmes','3ds.com'],['Sopra Steria','soprasteria.com'],['OVHcloud','ovhcloud.com'],['Criteo','criteo.com'],['Datadog','datadoghq.com']]
+  },
+  marketing: {
+    label: '📣 Commerce & marketing',
+    kw: ['marketing', 'communication', 'commercial', 'vente', 'digital', 'brand', 'réseaux sociaux', 'e-commerce', 'chef de produit'],
+    companies: [['L\'Oréal','loreal.com'],['LVMH','lvmh.com'],['Danone','danone.com'],['Publicis','publicisgroupe.com'],['Carrefour','carrefour.com'],['Decathlon','decathlon.com']]
+  }
+};
+
+function detectSectors(allText) {
+  const low = allText.toLowerCase();
+  /* Les phrases d'objectif (« je souhaite… un CDI dans votre cabinet de notaire ») pèsent plus lourd */
+  const intentMatches = low.match(/(je (souhaite|recherche|veux|désire|vise)|à la recherche d|mon objectif|objectif ?:|looking for|seeking)[^.\n]{0,140}/g) || [];
+  const intentText = intentMatches.join(' ');
+  const scores = [];
+  for (const key in SECTORS) {
+    const s = SECTORS[key];
+    let n = 0;
+    s.kw.forEach(k => {
+      n += (low.split(k).length - 1) * (k.length > 7 ? 2 : 1);
+      if (intentText.includes(k)) n += 8;
+    });
+    if (n > 0) scores.push({ key, label: s.label, companies: s.companies, n });
+  }
+  scores.sort((a, b) => b.n - a.n);
+  return scores.slice(0, 2).filter((s, i) => i === 0 || s.n >= scores[0].n * 0.55);
+}
+
+/* ================== EST-CE BIEN UN CV ? ================== */
+function isLikelyCV(text) {
+  const low = text.toLowerCase();
+  let signals = 0;
+  if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text)) signals++;
+  if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(text)) signals++;
+  if (/(expérience|formation|compétences|education|experience|skills|parcours)/.test(low)) signals++;
+  if ((text.match(/(20\d{2}|19\d{2})/g) || []).length >= 2) signals++;
+  if (/(stage|alternance|diplôme|master|licence|université|baccalauréat|degree|internship|school|cdi|cdd)/.test(low)) signals++;
+  return signals >= 3;
+}
 
 function detectLang(text) {
   const t = text.toLowerCase();
@@ -1100,6 +1310,9 @@ function analyze(text, lines, fileName, pageCount) {
   const review = buildLineReview(lines, lang);
   const examples = buildExamples(lines, lang, review);
 
+  /* --- Secteur(s) visé(s) et entreprises cibles --- */
+  const sectors = detectSectors(cleaned + ' ' + jobText);
+
   /* --- Score final --- */
   const total = criteria.reduce((s, c) => s + c.pts, 0);
   const max = criteria.reduce((s, c) => s + c.max, 0);
@@ -1111,10 +1324,10 @@ function analyze(text, lines, fileName, pageCount) {
   const prio = { high: 0, med: 1, low: 2 };
   advice.sort((a, b) => prio[a.p] - prio[b.p]);
 
-  renderResults(score, criteria, advice, examples, review, fileName, lang);
+  renderResults(score, criteria, advice, examples, review, sectors, fileName, lang);
 }
 
-function renderResults(score, criteria, advice, examples, review, fileName, lang) {
+function renderResults(score, criteria, advice, examples, review, sectors, fileName, lang) {
   spinner.style.display = 'none';
   document.getElementById('hero').style.display = 'none';
   document.getElementById('features').style.display = 'none';
@@ -1216,6 +1429,48 @@ function renderResults(score, criteria, advice, examples, review, fileName, lang
     li.innerHTML = '<span class="tag ' + a.p + '">' + labels[a.p] + '</span><div><b>' + a.t + '</b><div class="detail">' + a.d + '</div></div>';
     adviceEl.appendChild(li);
   });
+
+  /* Entreprises cibles selon le secteur détecté */
+  const compCard = document.getElementById('companiesCard');
+  const compZone = document.getElementById('companiesZone');
+  const compIntro = document.getElementById('companiesIntro');
+  compZone.innerHTML = '';
+  if (sectors && sectors.length) {
+    compCard.style.display = 'block';
+    compIntro.textContent = score >= 75
+      ? 'Votre CV a le niveau ATS pour candidater dans ce type d\'entreprises :'
+      : score >= 50
+      ? 'Après les corrections prioritaires ci-dessus, ce CV pourra viser ce type d\'entreprises :'
+      : 'Objectif une fois le CV optimisé — voici le type d\'entreprises correspondant à votre profil :';
+    sectors.forEach(sec => {
+      const title = document.createElement('div');
+      title.className = 'sector-title';
+      title.textContent = sec.label;
+      compZone.appendChild(title);
+      const grid = document.createElement('div');
+      grid.className = 'companies-grid';
+      sec.companies.forEach(([nameC, domain]) => {
+        const div = document.createElement('div');
+        div.className = 'company';
+        const img = document.createElement('img');
+        img.src = 'https://logo.clearbit.com/' + domain + '?size=80';
+        img.alt = nameC;
+        img.loading = 'lazy';
+        img.onerror = function () {
+          this.onerror = null;
+          this.src = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=64';
+        };
+        const span = document.createElement('span');
+        span.textContent = nameC;
+        div.appendChild(img);
+        div.appendChild(span);
+        grid.appendChild(div);
+      });
+      compZone.appendChild(grid);
+    });
+  } else {
+    compCard.style.display = 'none';
+  }
 }
 </script>
 </body>
