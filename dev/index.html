@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CVScore — Analysez votre CV pour les ATS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <script>
 /* ---- Garde d'accès : ne s'active que sur la version /dev/ ---- */
 (function () {
@@ -13,7 +13,7 @@
   var CODE = 'andy-dev-2026';
   var ok = sessionStorage.getItem('cvscore_dev_ok') === '1';
   if (!ok) {
-    var p = prompt('🔒 Version de développement — code d\'accès :');
+    var p = prompt('Version de développement — code d\'accès :');
     if (p === CODE) { ok = true; sessionStorage.setItem('cvscore_dev_ok', '1'); }
   }
   if (ok) { document.documentElement.classList.add('dev'); }
@@ -24,18 +24,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
   :root {
-    --navy: #0e1a3a;
-    --navy-soft: #3c4763;
-    --gold: #c9a227;
-    --gold-light: #e6c860;
+    --navy: #0b0b0f;
+    --navy-soft: #55555f;
+    --gold: #e0245e;
+    --gold-light: #ff6f9d;
     --bg: #ffffff;
-    --bg-soft: #f7f8fb;
-    --border: #e9ecf2;
+    --bg-soft: #faf8f9;
+    --border: #ececee;
     --green: #17a05e;
     --orange: #e8912d;
     --red: #d9483b;
     --radius: 16px;
-    --shadow: 0 6px 30px rgba(14, 26, 58, 0.07);
+    --shadow: 0 6px 30px rgba(11, 11, 15, 0.06);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
@@ -107,10 +107,20 @@
     margin-bottom: 20px;
   }
   h1 .accent {
-    background: linear-gradient(100deg, var(--gold), var(--gold-light));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0;
+  }
+  .eyebrow {
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
   }
   .hero p {
     color: var(--navy-soft);
@@ -132,7 +142,7 @@
   }
   .dropzone:hover, .dropzone.dragover {
     border-color: var(--gold);
-    background: #fdfaf1;
+    background: #fdeef4;
     transform: translateY(-2px);
   }
   .dropzone .icon { font-size: 2.2rem; margin-bottom: 10px; }
@@ -277,12 +287,13 @@
     padding: 30px;
   }
   .card h3 {
-    font-size: 1.05rem;
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+    font-size: 0.74rem;
     font-weight: 700;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--navy);
+    margin-bottom: 20px;
   }
 
   /* ---- CV preview ---- */
@@ -514,10 +525,12 @@
 
   footer {
     text-align: center;
-    padding: 30px;
-    color: var(--navy-soft);
+    padding: 36px;
+    background: var(--navy);
+    color: rgba(255, 255, 255, 0.75);
     font-size: 0.8rem;
-    border-top: 1px solid var(--border);
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    letter-spacing: 1px;
   }
   .spinner {
     display: none;
@@ -541,7 +554,7 @@
   }
   /* Badge visible uniquement sur la version /dev/ */
   html.dev body::after {
-    content: '🧪 VERSION DEV — non publique';
+    content: 'VERSION DEV — NON PUBLIQUE';
     position: fixed;
     bottom: 16px;
     right: 16px;
@@ -559,18 +572,17 @@
 <body>
 
 <nav>
-  <div class="logo">CV<span>Score</span></div>
+  <div class="logo">cvscore<span>:</span></div>
   <button class="nav-cta" onclick="document.getElementById('fileInput').click()">Analyser mon CV</button>
 </nav>
 
 <section class="hero" id="hero">
-  <div class="badge">✨ Analyse <b>100 % locale</b> — votre CV ne quitte jamais votre appareil</div>
-  <h1>Votre CV passe-t-il le filtre<br>des <span class="accent">robots ATS</span> ?</h1>
+  <div class="badge">Analyse <b>100 % locale</b> — votre CV ne quitte jamais votre appareil</div>
+  <h1>Votre CV passe-t-il le filtre<br>des <span class="accent">robots ATS&nbsp;?</span></h1>
   <p>75 % des CV sont écartés par des logiciels avant même d'être lus par un recruteur.
      Obtenez votre score ATS en quelques secondes et des conseils concrets pour le faire passer.</p>
 
   <div class="dropzone" id="dropzone">
-    <div class="icon">📄</div>
     <div class="main-line">Glissez votre CV ici ou cliquez pour le choisir</div>
     <div class="sub-line">PDF, DOCX ou TXT — Français ou Anglais</div>
   </div>
@@ -583,14 +595,14 @@
     <textarea id="jobText" placeholder="Collez ici le texte de l'offre d'emploi…"></textarea>
   </div>
 
-  <p class="privacy-note">🔒 <b>Confidentialité totale :</b> l'analyse s'exécute dans votre navigateur, aucune donnée n'est envoyée sur un serveur.</p>
+  <p class="privacy-note"><b>Confidentialité totale :</b> l'analyse s'exécute dans votre navigateur, aucune donnée n'est envoyée sur un serveur.</p>
 </section>
 
 <section class="features" id="features">
-  <div class="feature"><div class="emoji">🤖</div><h3>Critères ATS réels</h3><p>Structure, sections, format des dates, lisibilité machine : les mêmes points que vérifient Workday, Taleo ou SuccessFactors.</p></div>
-  <div class="feature"><div class="emoji">🔎</div><h3>Exemples personnalisés</h3><p>Des reformulations avant/après tirées directement des phrases de votre CV.</p></div>
-  <div class="feature"><div class="emoji">📊</div><h3>Score détaillé</h3><p>Une note globale sur 100, décomposée par critère, avec l'aperçu de votre CV en regard.</p></div>
-  <div class="feature"><div class="emoji">🎯</div><h3>Matching d'offre</h3><p>Collez une offre d'emploi : nous comparons vos mots-clés à ceux attendus par le recruteur.</p></div>
+  <div class="feature"><div class="eyebrow">01 — Critères</div><h3>Critères ATS réels</h3><p>Structure, sections, format des dates, lisibilité machine : les mêmes points que vérifient Workday, Taleo ou SuccessFactors.</p></div>
+  <div class="feature"><div class="eyebrow">02 — Exemples</div><h3>Exemples personnalisés</h3><p>Des reformulations avant/après tirées directement des phrases de votre CV.</p></div>
+  <div class="feature"><div class="eyebrow">03 — Score</div><h3>Score détaillé</h3><p>Une note globale sur 100, décomposée par critère, avec l'aperçu de votre CV en regard.</p></div>
+  <div class="feature"><div class="eyebrow">04 — Matching</div><h3>Matching d'offre</h3><p>Collez une offre d'emploi : nous comparons vos mots-clés à ceux attendus par le recruteur.</p></div>
 </section>
 
 <section id="results">
@@ -606,48 +618,48 @@
       </div>
     </div>
     <div class="verdict">
-      <div class="file-chip" id="fileChip">📄 cv.pdf</div>
+      <div class="file-chip" id="fileChip">cv.pdf</div>
       <h2 id="verdictTitle">—</h2>
       <p id="verdictText">—</p>
-      <button class="btn-restart" onclick="location.reload()">↻ Analyser un autre CV</button>
+      <button class="btn-restart" onclick="location.reload()">Analyser un autre CV</button>
     </div>
   </div>
 
   <div class="grid-main">
     <div class="card preview-card">
-      <h3>📄 Aperçu de votre CV</h3>
+      <h3>Aperçu de votre CV</h3>
       <div id="cvPreview"></div>
     </div>
 
     <div class="right-col">
       <div class="card">
-        <h3>📊 Détail par critère</h3>
+        <h3>Détail par critère</h3>
         <div id="criteria"></div>
       </div>
 
       <div class="card" id="reviewCard" style="display:none;">
-        <h3>🧐 Revue ligne par ligne de votre CV</h3>
+        <h3>Revue ligne par ligne</h3>
         <div class="review-summary" id="reviewSummary"></div>
         <div id="lineReview"></div>
       </div>
 
       <div class="card" id="exCard" style="display:none;">
-        <h3>🔎 Reformulations proposées (tirées de votre CV)</h3>
+        <h3>Reformulations proposées</h3>
         <div id="examples"></div>
       </div>
 
       <div class="card">
-        <h3>💡 Conseils prioritaires</h3>
+        <h3>Conseils prioritaires</h3>
         <ul class="advice" id="adviceList"></ul>
       </div>
 
       <div class="card" id="kwCard" style="display:none;">
-        <h3>🎯 Mots-clés de l'offre d'emploi</h3>
+        <h3>Mots-clés de l'offre d'emploi</h3>
         <div class="keywords-box" id="kwBox"></div>
       </div>
 
       <div class="card" id="companiesCard" style="display:none;">
-        <h3>🏢 Entreprises où ce CV peut postuler</h3>
+        <h3>Entreprises où ce CV peut postuler</h3>
         <div class="review-summary" id="companiesIntro"></div>
         <div id="companiesZone"></div>
       </div>
@@ -657,7 +669,6 @@
 
 <div class="modal-backdrop" id="notCvModal">
   <div class="modal-card">
-    <div class="emoji">🤔</div>
     <h3>Ce document ne ressemble pas à un CV</h3>
     <p id="notCvReason">Nous n'avons pas trouvé les éléments habituels d'un CV (coordonnées, expériences, formation…). Chargez votre CV au format PDF, DOCX ou TXT pour obtenir une analyse pertinente.</p>
     <div class="modal-actions">
@@ -667,7 +678,7 @@
   </div>
 </div>
 
-<footer>CVScore v10 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>cvscore: v11 — analyse ATS locale et gratuite. aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -856,47 +867,47 @@ const SECTIONS_EN = {
 /* ================== SECTEURS & ENTREPRISES CIBLES ================== */
 const SECTORS = {
   patrimoine: {
-    label: '💼 Gestion de patrimoine & banque privée',
+    label: 'Gestion de patrimoine & banque privée',
     kw: ['patrimoine', 'cgp', 'cgpi', 'banque privée', 'assurance vie', 'assurance-vie', 'succession', 'placement', 'family office', 'private banking', 'wealth management', 'défiscalisation'],
     companies: [['BNP Paribas Banque Privée','bnpparibas.com'],['Rothschild & Co','rothschildandco.com'],['UBS','ubs.com'],['Primonial','primonial.com'],['Cyrus Conseil','cyrusconseil.fr'],['AXA','axa.com']]
   },
   finance: {
-    label: '🏦 Finance & banque',
+    label: 'Finance & banque',
     kw: ['finance', 'banque', 'marchés financiers', 'trading', 'asset management', 'portefeuille', 'm&a', 'private equity', 'analyste financier', 'bloomberg', 'salle des marchés', 'corporate finance'],
     companies: [['BNP Paribas','bnpparibas.com'],['J.P. Morgan','jpmorgan.com'],['Société Générale','societegenerale.com'],['Amundi','amundi.com'],['Lazard','lazard.com'],['Goldman Sachs','goldmansachs.com']]
   },
   audit: {
-    label: '📊 Audit & expertise comptable',
+    label: 'Audit & expertise comptable',
     kw: ['audit', 'comptabilité', 'comptable', 'consolidation', 'commissaire aux comptes', 'expertise comptable', 'ifrs', 'contrôle de gestion'],
     companies: [['Deloitte','deloitte.com'],['EY','ey.com'],['KPMG','kpmg.com'],['PwC','pwc.com'],['Forvis Mazars','forvismazars.com'],['Grant Thornton','grantthornton.fr']]
   },
   droit: {
-    label: '⚖️ Droit & cabinets d\'avocats',
+    label: 'Droit & cabinets d\'avocats',
     kw: ['droit', 'juridique', 'juriste', 'avocat', 'contentieux', 'cabinet d\'avocats', 'master droit', 'licence droit', 'tribunal', 'fiscalité', 'droit des sociétés', 'droit des affaires'],
     companies: [['Fidal','fidal.com'],['Gide','gide.com'],['CMS Francis Lefebvre','cms.law'],['Bredin Prat','bredinprat.com'],['August Debouzy','august-debouzy.com'],['LPA Law','lpalaw.com']]
   },
   notariat: {
-    label: '📜 Notariat',
+    label: 'Notariat',
     kw: ['notaire', 'notarial', 'notariat', 'acte authentique', 'office notarial', 'étude notariale', 'clerc de notaire'],
     companies: [['Cheuvreux Notaires','cheuvreux.fr'],['Monassier & Associés','monassier.com'],['14 Pyramides Notaires','14pyramides.notaires.fr'],['Lasaygues','lasaygues.com'],['Michelez Notaires','michelez.notaires.fr'],['Victoires Notaires','victoires-notaires.fr']]
   },
   ingenierie: {
-    label: '🏗️ Ingénierie, industrie & énergie',
+    label: 'Ingénierie, industrie & énergie',
     kw: ['ingénieur', 'ingénierie', 'mécanique', 'électronique', 'énergie', 'industrie', 'production', 'maintenance', 'bureau d\'études', 'génie civil', 'process'],
     companies: [['TotalEnergies','totalenergies.com'],['EDF','edf.fr'],['Airbus','airbus.com'],['Safran','safran-group.com'],['Vinci','vinci.com'],['Thales','thalesgroup.com']]
   },
   sante: {
-    label: '🩺 Santé & pharmaceutique',
+    label: 'Santé & pharmaceutique',
     kw: ['santé', 'pharmaceutique', 'pharmacie', 'médical', 'clinique', 'hôpital', 'laboratoire', 'biologie', 'infirmier', 'essais cliniques'],
     companies: [['Sanofi','sanofi.com'],['Servier','servier.com'],['Pierre Fabre','pierre-fabre.com'],['bioMérieux','biomerieux.com'],['Ipsen','ipsen.com'],['Doctolib','doctolib.fr']]
   },
   tech: {
-    label: '💻 Tech & informatique',
+    label: 'Tech & informatique',
     kw: ['développeur', 'informatique', 'logiciel', 'data', 'python', 'javascript', 'cybersécurité', 'cloud', 'devops', 'intelligence artificielle', 'sql', 'fullstack'],
     companies: [['Capgemini','capgemini.com'],['Dassault Systèmes','3ds.com'],['Sopra Steria','soprasteria.com'],['OVHcloud','ovhcloud.com'],['Criteo','criteo.com'],['Datadog','datadoghq.com']]
   },
   marketing: {
-    label: '📣 Commerce & marketing',
+    label: 'Commerce & marketing',
     kw: ['marketing', 'communication', 'commercial', 'vente', 'digital', 'brand', 'réseaux sociaux', 'e-commerce', 'chef de produit'],
     companies: [['L\'Oréal','loreal.com'],['LVMH','lvmh.com'],['Danone','danone.com'],['Publicis','publicisgroupe.com'],['Carrefour','carrefour.com'],['Decathlon','decathlon.com']]
   }
@@ -1116,11 +1127,11 @@ function buildLineReview(lines, lang) {
     const hasVerb = startsWithActionVerb(l, lang);
     const hasNum = /\d/.test(l);
     const firstPerson = lang === 'fr' ? /(^|\s)(je |j'ai |j'|mon |ma |mes )/i.test(l.slice(0, 25)) : /^i |^my /i.test(l);
-    if (!hasVerb) flags.push({ type: 'bad', label: lang === 'fr' ? "⚠ Pas de verbe d'action en tête" : '⚠ No leading action verb' });
-    if (!hasNum) flags.push({ type: 'warn', label: lang === 'fr' ? '⚠ Aucun chiffre / résultat mesurable' : '⚠ No measurable result' });
-    if (firstPerson) flags.push({ type: 'bad', label: lang === 'fr' ? '⚠ Première personne (« je ») à éviter' : '⚠ Avoid first person' });
-    if (l.length > 180) flags.push({ type: 'warn', label: lang === 'fr' ? '⚠ Trop longue : coupez en deux puces' : '⚠ Too long: split into two bullets' });
-    if (flags.length === 0) flags.push({ type: 'ok', label: lang === 'fr' ? '✓ Bonne ligne ATS' : '✓ ATS-friendly' });
+    if (!hasVerb) flags.push({ type: 'bad', label: lang === 'fr' ? "Pas de verbe d'action en tête" : 'No leading action verb' });
+    if (!hasNum) flags.push({ type: 'warn', label: lang === 'fr' ? 'Aucun chiffre / résultat mesurable' : 'No measurable result' });
+    if (firstPerson) flags.push({ type: 'bad', label: lang === 'fr' ? 'Première personne (« je ») à éviter' : 'Avoid first person' });
+    if (l.length > 180) flags.push({ type: 'warn', label: lang === 'fr' ? 'Trop longue : coupez en deux puces' : 'Too long: split into two bullets' });
+    if (flags.length === 0) flags.push({ type: 'ok', label: lang === 'fr' ? 'Bonne ligne ATS' : 'ATS-friendly' });
     review.push({ line: l, flags, score: flags.filter(f => f.type !== 'ok').length, hasVerb, hasNum });
   }
   /* Les lignes les plus problématiques d'abord */
@@ -1363,8 +1374,8 @@ function analyze(text, lines, fileName, pageCount) {
     const found = topKw.filter(k => lower.includes(k));
     const missing = topKw.filter(k => !lower.includes(k));
     kwPts = topKw.length ? Math.round((found.length / topKw.length) * 10) : 5;
-    const kwHtml = found.map(k => '<span class="kw found">✓ ' + escapeHtml(k) + '</span>').join('') +
-             missing.map(k => '<span class="kw missing">✗ ' + escapeHtml(k) + '</span>').join('');
+    const kwHtml = found.map(k => '<span class="kw found">' + escapeHtml(k) + '</span>').join('') +
+             missing.map(k => '<span class="kw missing">' + escapeHtml(k) + '</span>').join('');
     if (missing.length > topKw.length / 2) {
       advice.push({p:'high', t:"Trop peu de mots-clés de l'offre", d:'Intégrez naturellement les termes manquants (en rouge) dans vos expériences — les ATS classent par correspondance de mots-clés. Ex. : « ' + missing.slice(0,3).join(' », « ') + ' ».'});
     }
@@ -1412,7 +1423,7 @@ function renderResults(score, criteria, advice, examples, review, sectors, fileN
   results.style.display = 'block';
   window.scrollTo({ top: 0 });
 
-  document.getElementById('fileChip').textContent = '📄 ' + fileName;
+  document.getElementById('fileChip').textContent = fileName;
 
   const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
   const gauge = document.getElementById('gaugeFill');
@@ -1434,10 +1445,10 @@ function renderResults(score, criteria, advice, examples, review, sectors, fileN
   }, 25);
 
   const titles = score >= 75
-    ? ['CV solide face aux ATS ✅', 'Votre CV a de très bonnes chances de passer les filtres automatiques. Peaufinez les derniers détails ci-dessous.']
+    ? ['CV solide face aux ATS', 'Votre CV a de très bonnes chances de passer les filtres automatiques. Peaufinez les derniers détails ci-dessous.']
     : score >= 50
-    ? ['Peut mieux faire ⚠️', 'Votre CV passe partiellement les filtres ATS. Quelques ajustements ciblés peuvent nettement améliorer votre score.']
-    : ['Risque élevé de rejet automatique ❌', "En l'état, votre CV risque d'être écarté avant lecture humaine. Suivez les conseils prioritaires ci-dessous."];
+    ? ['Peut mieux faire', 'Votre CV passe partiellement les filtres ATS. Quelques ajustements ciblés peuvent nettement améliorer votre score.']
+    : ['Risque élevé de rejet automatique', "En l'état, votre CV risque d'être écarté avant lecture humaine. Suivez les conseils prioritaires ci-dessous."];
   document.getElementById('verdictTitle').textContent = titles[0];
   document.getElementById('verdictText').textContent = titles[1];
 
@@ -1489,8 +1500,8 @@ function renderResults(score, criteria, advice, examples, review, sectors, fileN
       const div = document.createElement('div');
       div.className = 'example';
       div.innerHTML =
-        '<div class="before"><span class="lbl">✗ Dans votre CV</span>' + escapeHtml(ex.before) + '</div>' +
-        '<div class="after"><span class="lbl">✓ Version optimisée ATS</span>' + escapeHtml(ex.after) + '</div>' +
+        '<div class="before"><span class="lbl">Dans votre CV</span>' + escapeHtml(ex.before) + '</div>' +
+        '<div class="after"><span class="lbl">Version optimisée ATS</span>' + escapeHtml(ex.after) + '</div>' +
         '<div class="why">' + escapeHtml(ex.why) + '</div>';
       exEl.appendChild(div);
     });
