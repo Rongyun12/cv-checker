@@ -638,7 +638,7 @@
   </div>
 </div>
 
-<footer>CVScore v8 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>CVScore v9 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1103,6 +1103,23 @@ function buildLineReview(lines, lang) {
 function buildExamples(lines, lang, review) {
   const examples = [];
   const used = new Set();
+
+  /* Seules les lignes de la section Expérience sont candidates aux reformulations :
+     ni la formation, ni les listes de matières/compétences (énumérations à virgules) */
+  const bodySize = computeBodySize(lines);
+  const hasExp = lines.some(it => sectionOf(it.text.trim(), lang) === 'exp');
+  let cur = null;
+  const eligible = [];
+  for (const item of lines) {
+    const t = item.text.trim();
+    const sec = sectionOf(t, lang);
+    if (sec) { cur = sec; continue; }
+    if (hasExp && cur !== 'exp') continue;
+    if (isHeadingLine(item, bodySize, lang)) continue;
+    if ((t.match(/,/g) || []).length >= 3) continue;
+    eligible.push(item);
+  }
+  lines = eligible;
 
   const weakMapFr = [
     [/^[-•▪●➤➔\s]*en charge (de la |de l'|du |des |de )/i, 'Géré '],
