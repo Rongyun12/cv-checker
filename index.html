@@ -532,7 +532,7 @@
   </div>
 </section>
 
-<footer>CVScore v4 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>CVScore v5 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -598,8 +598,9 @@ async function handleFile(file) {
           previewEl.appendChild(canvas);
         }
 
-        /* Extraction ligne par ligne (regroupement par position verticale) */
+        /* Extraction ligne par ligne avec métadonnées de police (taille, gras, italique) */
         const content = await page.getTextContent();
+        const styles = content.styles || {};
         const rows = {};
         content.items.forEach(it => {
           if (!it.str.trim()) return;
@@ -607,16 +608,27 @@ async function handleFile(file) {
           (rows[y] = rows[y] || []).push(it);
         });
         Object.keys(rows).map(Number).sort((a, b) => b - a).forEach(y => {
-          const line = rows[y].sort((a, b) => a.transform[4] - b.transform[4]).map(t => t.str).join(' ').replace(/\s+/g, ' ').trim();
-          if (line) lines.push(line);
+          const items = rows[y].sort((a, b) => a.transform[4] - b.transform[4]);
+          const line = items.map(t => t.str).join(' ').replace(/\s+/g, ' ').trim();
+          if (!line) return;
+          let size = 0, bold = false, italic = false;
+          items.forEach(t => {
+            const s = Math.max(Math.abs(t.transform[3]), Math.abs(t.transform[0]));
+            if (s > size) size = s;
+            const st = styles[t.fontName] || {};
+            const fam = ((st.fontFamily || '') + ' ' + (t.fontName || '')).toLowerCase();
+            if (/bold|black|heavy|semibold|demi|medium/.test(fam)) bold = true;
+            if (/italic|oblique/.test(fam)) italic = true;
+          });
+          lines.push({ text: line, size: Math.round(size * 10) / 10, bold, italic });
         });
       }
-      text = lines.join('\n');
+      text = lines.map(l => l.text).join('\n');
     } else if (name.endsWith('.docx')) {
       const buf = await file.arrayBuffer();
       const raw = await mammoth.extractRawText({ arrayBuffer: buf });
       text = raw.value;
-      lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean).map(t => ({ text: t, size: null, bold: false, italic: false }));
       pageCount = Math.max(1, Math.round(text.split(/\s+/).length / 450));
       try {
         const html = await mammoth.convertToHtml({ arrayBuffer: buf });
@@ -625,10 +637,23 @@ async function handleFile(file) {
         div.innerHTML = html.value;
         div.querySelectorAll('img').forEach(img => { img.style.maxWidth = '100%'; });
         previewEl.appendChild(div);
+        /* Reconstruit les lignes depuis le HTML pour récupérer gras / titres */
+        const els = div.querySelectorAll('p, li, h1, h2, h3, h4');
+        if (els.length) {
+          lines = [];
+          els.forEach(el => {
+            const t = el.textContent.replace(/\s+/g, ' ').trim();
+            if (!t) return;
+            const isHead = /^H\d$/i.test(el.tagName);
+            const strong = el.querySelector('strong, b');
+            const boldAll = isHead || (strong && strong.textContent.trim().length >= t.length * 0.7);
+            lines.push({ text: t, size: null, bold: !!boldAll, italic: false });
+          });
+        }
       } catch (e) { /* aperçu non bloquant */ }
     } else if (name.endsWith('.txt')) {
       text = await file.text();
-      lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean).map(t => ({ text: t, size: null, bold: false, italic: false }));
       const div = document.createElement('div');
       div.className = 'txt-preview';
       div.textContent = text;
@@ -681,23 +706,62 @@ function detectLang(text) {
 function mergeWrappedLines(lines) {
   const merged = [];
   const bulletRe = /^[-–—•▪●➤➔*·o]\s/;
-  for (const raw of lines) {
-    const l = raw.trim();
+  for (const item of lines) {
+    const l = item.text.trim();
     if (!l) continue;
     const prev = merged.length ? merged[merged.length - 1] : null;
     const startsLower = /^[a-zà-ÿ]/.test(l);
     const startsConnector = /^(et |ou |de |d'|du |des |à |au |aux |en |pour |avec |dans |sur |and |of |to |in |for |with )/i.test(l);
-    const prevDangling = prev && (/[,;:]$/.test(prev) || /\b(de|d'|du|des|et|ou|à|au|aux|en|pour|avec|dans|sur|the|of|and|to|in|for|with)$/i.test(prev));
-    const prevEndsSentence = prev && /[.!?…]$/.test(prev);
-    if (prev && !bulletRe.test(l) && !prevEndsSentence &&
+    const prevDangling = prev && (/[,;:]$/.test(prev.text) || /\b(de|d'|du|des|et|ou|à|au|aux|en|pour|avec|dans|sur|the|of|and|to|in|for|with)$/i.test(prev.text));
+    const prevEndsSentence = prev && /[.!?…]$/.test(prev.text);
+    /* Une différence de taille de police = changement de bloc (titre → texte), on ne fusionne pas */
+    const sizeBreak = prev && prev.size && item.size && Math.abs(prev.size - item.size) > 0.8;
+    const styleBreak = prev && (prev.bold !== item.bold);
+    if (prev && !sizeBreak && !styleBreak && !bulletRe.test(l) && !prevEndsSentence &&
         (startsLower || startsConnector || prevDangling) &&
-        (prev.length + l.length) < 400) {
-      merged[merged.length - 1] = prev + ' ' + l;
+        (prev.text.length + l.length) < 400) {
+      prev.text = prev.text + ' ' + l;
     } else {
-      merged.push(l);
+      merged.push({ text: l, size: item.size, bold: item.bold, italic: item.italic });
     }
   }
   return merged;
+}
+
+/* ---- Taille de police du corps de texte (la plus fréquente, pondérée par longueur) ---- */
+function computeBodySize(lines) {
+  const freq = {};
+  lines.forEach(it => {
+    if (it.size) {
+      const k = Math.round(it.size);
+      freq[k] = (freq[k] || 0) + it.text.length;
+    }
+  });
+  let best = null, bestN = 0;
+  for (const k in freq) {
+    if (freq[k] > bestN) { bestN = freq[k]; best = Number(k); }
+  }
+  return best;
+}
+
+/* ---- Ligne « titre » : société, intitulé de poste, dates — exclue de la revue ---- */
+function isHeadingLine(item, bodySize, lang) {
+  const l = item.text.trim();
+  if (item.bold) return true;
+  if (item.size && bodySize && item.size >= bodySize + 1) return true;
+  /* En-tête d'expérience : contient une plage de dates courte */
+  const months = /(janv|févr|mars|avril|mai|juin|juil|août|sept|oct|nov|déc|january|february|march|april|may|june|july|august|september|october|november|december)/i;
+  const hasDate = /(20\d{2}|19\d{2})/.test(l);
+  if (hasDate && (months.test(l) || /[–—]/.test(l)) && l.length < 90) return true;
+  /* Type de contrat = en-tête d'expérience */
+  if (/(stage|alternance|apprentissage|cdi|cdd|intern(ship)?|freelance)/i.test(l) && l.length < 80) return true;
+  /* Ligne courte en « Title Case » sans ponctuation de phrase : probablement un nom de société ou d'école */
+  const ws = l.split(/\s+/);
+  if (ws.length <= 6 && !/[.,;!?]/.test(l)) {
+    const caps = ws.filter(w => /^[A-ZÀ-Ü]/.test(w)).length;
+    if (caps >= Math.ceil(ws.length * 0.6)) return true;
+  }
+  return false;
 }
 
 /* ---- Détection de la section courante (expérience / formation / etc.) ---- */
@@ -764,15 +828,18 @@ function buildLineReview(lines, lang) {
   const review = [];
   const seen = new Set();
   let currentSection = null;
-  const hasExpSection = lines.some(l => sectionOf(l.trim(), lang) === 'exp');
-  for (const raw of lines) {
+  const bodySize = computeBodySize(lines);
+  const hasExpSection = lines.some(it => sectionOf(it.text.trim(), lang) === 'exp');
+  for (const item of lines) {
     if (review.length >= 8) break;
-    const l = raw.trim();
+    const l = item.text.trim();
     const sec = sectionOf(l, lang);
     if (sec) { currentSection = sec; continue; }
     /* Les critères « verbe d'action / chiffres » ne concernent que les expériences :
        on ignore la formation, les compétences, les langues, etc. */
     if (hasExpSection && currentSection !== 'exp') continue;
+    /* Titres (société, poste, dates) repérés par la police (taille, gras) ou leur forme : exclus */
+    if (isHeadingLine(item, bodySize, lang)) continue;
     if (!isContentLine(l, lang) || seen.has(l)) continue;
     seen.add(l);
     const flags = [];
@@ -822,9 +889,9 @@ function buildExamples(lines, lang, review) {
   const weakMap = lang === 'fr' ? weakMapFr : weakMapEn;
 
   /* 1. Tournures faibles → verbe d'action */
-  for (const raw of lines) {
+  for (const item of lines) {
     if (examples.length >= 2) break;
-    const l = raw.trim();
+    const l = item.text.trim();
     if (l.length < 18 || l.length > 170 || used.has(l)) continue;
     for (const [re, verb] of weakMap) {
       if (re.test(l)) {
@@ -847,9 +914,9 @@ function buildExamples(lines, lang, review) {
   }
 
   /* 2. Phrases d'expérience sans chiffres → version quantifiée */
-  for (const raw of lines) {
+  for (const item of lines) {
     if (examples.length >= 4) break;
-    const l = raw.trim();
+    const l = item.text.trim();
     if (l.length < 25 || l.length > 170 || /\d/.test(l) || used.has(l)) continue;
     if (/(client|portefeuille|projet|équipe|dossier|budget|vente|patrimoine|reporting|analyse|étude|campagne|contrat|customer|portfolio|project|team|report)/i.test(l)) {
       const suffix = lang === 'fr'
