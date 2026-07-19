@@ -371,6 +371,33 @@
   }
   .example .why { font-size: 0.78rem; color: var(--navy-soft); }
 
+  /* ---- Line review ---- */
+  .line-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bg-soft);
+    font-size: 0.86rem;
+  }
+  .line-item:last-child { border-bottom: none; }
+  .line-item .line-text { color: var(--navy); margin-bottom: 6px; }
+  .line-item .flags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .flag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .flag.bad { background: #fdecea; color: var(--red); }
+  .flag.warn { background: #fdf3e3; color: var(--orange); }
+  .flag.ok { background: #e8f6ef; color: var(--green); }
+  .review-summary {
+    font-size: 0.82rem;
+    color: var(--navy-soft);
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    background: var(--bg-soft);
+    border-radius: 10px;
+  }
+
   .keywords-box { margin-top: 4px; }
   .kw {
     display: inline-block;
@@ -481,8 +508,14 @@
         <div id="criteria"></div>
       </div>
 
+      <div class="card" id="reviewCard" style="display:none;">
+        <h3>🧐 Revue ligne par ligne de votre CV</h3>
+        <div class="review-summary" id="reviewSummary"></div>
+        <div id="lineReview"></div>
+      </div>
+
       <div class="card" id="exCard" style="display:none;">
-        <h3>🔎 Exemples tirés de votre CV</h3>
+        <h3>🔎 Reformulations proposées (tirées de votre CV)</h3>
         <div id="examples"></div>
       </div>
 
@@ -499,7 +532,7 @@
   </div>
 </section>
 
-<footer>CVScore — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>CVScore v3 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -604,6 +637,12 @@ async function handleFile(file) {
       showError('Format non pris en charge. Utilisez un fichier PDF, DOCX ou TXT.');
       return;
     }
+    if (!previewEl.childElementCount) {
+      const div = document.createElement('div');
+      div.className = 'txt-preview';
+      div.textContent = "Aperçu graphique indisponible pour ce fichier — texte analysé :\n\n" + text.slice(0, 2000);
+      previewEl.appendChild(div);
+    }
     analyze(text, lines, file.name, pageCount);
   } catch (e) {
     showError("Impossible de lire ce fichier : " + e.message);
@@ -638,8 +677,79 @@ function detectLang(text) {
   return fr >= en ? 'fr' : 'en';
 }
 
+/* ---- Revue ligne par ligne ---- */
+function isContentLine(l, lang) {
+  const low = l.toLowerCase();
+  if (l.length < 20 || l.length > 220) return false;
+  if (/@|linkedin|github|http|www\.|permis [ab]/i.test(low)) return false;
+  if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(l)) return false;
+  /* Titres de sections */
+  const titles = ['expérience','formation','compétences','langues','centres d','projets','education','experience','skills','languages','profil','à propos','about','contact','certifications'];
+  if (l.length < 40 && titles.some(t => low.startsWith(t))) return false;
+  /* Lignes trop "titre" : tout en majuscules */
+  if (l === l.toUpperCase() && l.length < 60) return false;
+  return true;
+}
+
+function startsWithActionVerb(l, lang) {
+  const verbs = lang === 'fr' ? ACTION_VERBS_FR : ACTION_VERBS_EN;
+  const start = l.toLowerCase().replace(/^[-•▪●➤➔*\s]+/, '');
+  return verbs.some(v => start.startsWith(v));
+}
+
+function suggestVerb(l, lang) {
+  const low = l.toLowerCase();
+  if (lang === 'fr') {
+    if (/analys|étude|data|données|reporting/.test(low)) return 'Analysé';
+    if (/client|conseil|patrimoine|rendez-vous/.test(low)) return 'Conseillé';
+    if (/gestion|portefeuille|dossier|administrat/.test(low)) return 'Géré';
+    if (/rédaction|rapport|note|synthèse|compte[- ]rendu/.test(low)) return 'Rédigé';
+    if (/organisation|événement|planning/.test(low)) return 'Organisé';
+    if (/création|développement|site|outil|modèle/.test(low)) return 'Développé';
+    if (/vente|commercial|prospection/.test(low)) return 'Développé';
+    if (/suivi|contrôle|vérification/.test(low)) return 'Assuré le suivi de';
+    if (/formation|accompagnement|tutorat/.test(low)) return 'Formé';
+    if (/négociation|contrat/.test(low)) return 'Négocié';
+    return 'Réalisé';
+  } else {
+    if (/analy|data|report/.test(low)) return 'Analyzed';
+    if (/client|advis/.test(low)) return 'Advised';
+    if (/manag|portfolio|administrat/.test(low)) return 'Managed';
+    if (/writ|draft|report/.test(low)) return 'Drafted';
+    if (/organiz|event/.test(low)) return 'Organized';
+    if (/develop|creat|build|tool/.test(low)) return 'Developed';
+    if (/sale|prospect/.test(low)) return 'Grew';
+    if (/track|monitor|control/.test(low)) return 'Monitored';
+    return 'Delivered';
+  }
+}
+
+function buildLineReview(lines, lang) {
+  const review = [];
+  const seen = new Set();
+  for (const raw of lines) {
+    if (review.length >= 8) break;
+    const l = raw.trim();
+    if (!isContentLine(l, lang) || seen.has(l)) continue;
+    seen.add(l);
+    const flags = [];
+    const hasVerb = startsWithActionVerb(l, lang);
+    const hasNum = /\d/.test(l);
+    const firstPerson = lang === 'fr' ? /(^|\s)(je |j'ai |j'|mon |ma |mes )/i.test(l.slice(0, 25)) : /^i |^my /i.test(l);
+    if (!hasVerb) flags.push({ type: 'bad', label: lang === 'fr' ? "⚠ Pas de verbe d'action en tête" : '⚠ No leading action verb' });
+    if (!hasNum) flags.push({ type: 'warn', label: lang === 'fr' ? '⚠ Aucun chiffre / résultat mesurable' : '⚠ No measurable result' });
+    if (firstPerson) flags.push({ type: 'bad', label: lang === 'fr' ? '⚠ Première personne (« je ») à éviter' : '⚠ Avoid first person' });
+    if (l.length > 180) flags.push({ type: 'warn', label: lang === 'fr' ? '⚠ Trop longue : coupez en deux puces' : '⚠ Too long: split into two bullets' });
+    if (flags.length === 0) flags.push({ type: 'ok', label: lang === 'fr' ? '✓ Bonne ligne ATS' : '✓ ATS-friendly' });
+    review.push({ line: l, flags, score: flags.filter(f => f.type !== 'ok').length, hasVerb, hasNum });
+  }
+  /* Les lignes les plus problématiques d'abord */
+  review.sort((a, b) => b.score - a.score);
+  return review;
+}
+
 /* ---- Exemples personnalisés avant/après ---- */
-function buildExamples(lines, lang) {
+function buildExamples(lines, lang, review) {
   const examples = [];
   const used = new Set();
 
@@ -711,6 +821,30 @@ function buildExamples(lines, lang) {
         why: lang === 'fr'
           ? 'Les résultats chiffrés augmentent le score de pertinence et crédibilisent la mission auprès du recruteur.'
           : 'Quantified results boost relevance scores and credibility.'
+      });
+      used.add(l);
+    }
+  }
+
+  /* 3. Garantie : réécriture des lignes signalées par la revue, avec un verbe suggéré selon leur contenu */
+  if (review) {
+    for (const item of review) {
+      if (examples.length >= 4) break;
+      const l = item.line;
+      if (used.has(l) || item.hasVerb) continue;
+      const verb = suggestVerb(l, lang);
+      let rest = l.replace(/^[-•▪●➤➔*\s]+/, '');
+      rest = rest.charAt(0).toLowerCase() + rest.slice(1);
+      let after = verb + ' ' + rest;
+      if (!item.hasNum) {
+        after += lang === 'fr' ? ' [+ chiffre : volume, montant, %]' : ' [+ number: volume, amount, %]';
+      }
+      examples.push({
+        before: l,
+        after: after,
+        why: lang === 'fr'
+          ? "Verbe d'action suggéré d'après le contenu de la ligne — ajustez-le si un autre décrit mieux votre rôle."
+          : 'Suggested action verb based on the line content — adjust if another fits better.'
       });
       used.add(l);
     }
@@ -851,8 +985,9 @@ function analyze(text, lines, fileName, pageCount) {
   }
   criteria.push({ name: jobText ? "Matching offre d'emploi" : 'Compétences clés', pts: kwPts, max: 10 });
 
-  /* --- Exemples personnalisés --- */
-  const examples = buildExamples(lines, lang);
+  /* --- Revue ligne par ligne + exemples personnalisés --- */
+  const review = buildLineReview(lines, lang);
+  const examples = buildExamples(lines, lang, review);
 
   /* --- Score final --- */
   const total = criteria.reduce((s, c) => s + c.pts, 0);
@@ -865,10 +1000,10 @@ function analyze(text, lines, fileName, pageCount) {
   const prio = { high: 0, med: 1, low: 2 };
   advice.sort((a, b) => prio[a.p] - prio[b.p]);
 
-  renderResults(score, criteria, advice, examples, fileName);
+  renderResults(score, criteria, advice, examples, review, fileName, lang);
 }
 
-function renderResults(score, criteria, advice, examples, fileName) {
+function renderResults(score, criteria, advice, examples, review, fileName, lang) {
   spinner.style.display = 'none';
   document.getElementById('hero').style.display = 'none';
   document.getElementById('features').style.display = 'none';
@@ -919,6 +1054,29 @@ function renderResults(score, criteria, advice, examples, fileName) {
   setTimeout(() => {
     document.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w + '%'; });
   }, 100);
+
+  /* Revue ligne par ligne */
+  const reviewCard = document.getElementById('reviewCard');
+  const reviewEl = document.getElementById('lineReview');
+  const reviewSummary = document.getElementById('reviewSummary');
+  reviewEl.innerHTML = '';
+  if (review.length) {
+    reviewCard.style.display = 'block';
+    const nOk = review.filter(r => r.score === 0).length;
+    const nBad = review.length - nOk;
+    reviewSummary.textContent = (lang === 'fr')
+      ? review.length + ' lignes de contenu analysées : ' + nOk + ' conforme(s) ATS, ' + nBad + ' à améliorer (les plus problématiques en premier).'
+      : review.length + ' content lines analyzed: ' + nOk + ' ATS-friendly, ' + nBad + ' to improve.';
+    review.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'line-item';
+      div.innerHTML = '<div class="line-text">« ' + escapeHtml(item.line) + ' »</div>' +
+        '<div class="flags">' + item.flags.map(f => '<span class="flag ' + f.type + '">' + escapeHtml(f.label) + '</span>').join('') + '</div>';
+      reviewEl.appendChild(div);
+    });
+  } else {
+    reviewCard.style.display = 'none';
+  }
 
   /* Exemples avant/après tirés du CV */
   const exCard = document.getElementById('exCard');
