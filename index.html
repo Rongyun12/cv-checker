@@ -638,7 +638,7 @@
   </div>
 </div>
 
-<footer>CVScore v6 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>CVScore v7 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -965,9 +965,15 @@ function isHeadingLine(item, bodySize, lang) {
   if (hasDate && (months.test(l) || /[–—]/.test(l)) && l.length < 90) return true;
   /* Type de contrat = en-tête d'expérience */
   if (/(stage|alternance|apprentissage|cdi|cdd|intern(ship)?|freelance)/i.test(l) && l.length < 80) return true;
-  /* Ligne courte en « Title Case » sans ponctuation de phrase : probablement un nom de société ou d'école */
+  /* Intitulé de poste court */
+  if (/^(auxiliaire|assistant|stagiaire|alternant|conseiller|chargé|vendeur|serveur|hôte|hôtesse|animateur|opérateur|apprenti|employé|caissier|équipier)/i.test(l) && l.split(/\s+/).length <= 5) return true;
+  /* Forte proportion de MAJUSCULES = nom de société / titre (ex. « SOCIÉTÉ GÉNÉRALE Sevran ») */
+  const letters = l.replace(/[^A-Za-zÀ-ÿ]/g, '');
+  const upper = letters.replace(/[^A-ZÀ-Ü]/g, '');
+  if (letters.length > 4 && upper.length / letters.length >= 0.5) return true;
+  /* Ligne courte en « Title Case » (virgules autorisées : « Société, Ville ») */
   const ws = l.split(/\s+/);
-  if (ws.length <= 6 && !/[.,;!?]/.test(l)) {
+  if (ws.length <= 6 && !/[.;!?]/.test(l)) {
     const caps = ws.filter(w => /^[A-ZÀ-Ü]/.test(w)).length;
     if (caps >= Math.ceil(ws.length * 0.6)) return true;
   }
@@ -990,9 +996,11 @@ function sectionOf(l, lang) {
 /* ---- Revue ligne par ligne ---- */
 function isContentLine(l, lang) {
   const low = l.toLowerCase();
-  if (l.length < 20 || l.length > 300) return false;
+  if (l.length < 28 || l.length > 300) return false;
   if (/@|linkedin|github|http|www\.|permis [ab]/i.test(low)) return false;
   if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(l)) return false;
+  /* Ligne de localisation « Ville, Région » */
+  if (/^[^,;:]{2,35},\s*[^,;:]{2,35}$/.test(l) && l.split(/\s+/).length <= 5 && !/\d/.test(l)) return false;
   /* Titres de sections */
   const titles = ['expérience','formation','compétences','langues','centres d','projets','education','experience','skills','languages','profil','à propos','about','contact','certifications'];
   if (l.length < 40 && titles.some(t => low.startsWith(t))) return false;
@@ -1001,10 +1009,15 @@ function isContentLine(l, lang) {
   return true;
 }
 
+/* Style nominal accepté sur les CV français : « Gestion de… », « Développement de… » */
+const ACTION_NOUNS_FR = ['gestion','développement','exploitation','traitement','accompagnement','suivi','rédaction','analyse','création','organisation','mise en place','prospection','conseil','élaboration','conception','animation','pilotage','coordination','réalisation','négociation','encadrement','optimisation','modélisation','participation','contribution'];
+const ACTION_NOUNS_EN = ['management','development','analysis','creation','organization','coordination','implementation','optimization','supervision','negotiation'];
+
 function startsWithActionVerb(l, lang) {
   const verbs = lang === 'fr' ? ACTION_VERBS_FR : ACTION_VERBS_EN;
+  const nouns = lang === 'fr' ? ACTION_NOUNS_FR : ACTION_NOUNS_EN;
   const start = l.toLowerCase().replace(/^[-•▪●➤➔*\s]+/, '');
-  return verbs.some(v => start.startsWith(v));
+  return verbs.some(v => start.startsWith(v)) || nouns.some(n => start.startsWith(n));
 }
 
 function suggestVerb(l, lang) {
