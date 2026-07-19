@@ -532,7 +532,7 @@
   </div>
 </section>
 
-<footer>CVScore v3 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
+<footer>CVScore v4 — Analyse ATS locale et gratuite. Aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -677,10 +677,46 @@ function detectLang(text) {
   return fr >= en ? 'fr' : 'en';
 }
 
+/* ---- Fusion des retours à la ligne (une phrase coupée ≠ deux puces) ---- */
+function mergeWrappedLines(lines) {
+  const merged = [];
+  const bulletRe = /^[-–—•▪●➤➔*·o]\s/;
+  for (const raw of lines) {
+    const l = raw.trim();
+    if (!l) continue;
+    const prev = merged.length ? merged[merged.length - 1] : null;
+    const startsLower = /^[a-zà-ÿ]/.test(l);
+    const startsConnector = /^(et |ou |de |d'|du |des |à |au |aux |en |pour |avec |dans |sur |and |of |to |in |for |with )/i.test(l);
+    const prevDangling = prev && (/[,;:]$/.test(prev) || /\b(de|d'|du|des|et|ou|à|au|aux|en|pour|avec|dans|sur|the|of|and|to|in|for|with)$/i.test(prev));
+    const prevEndsSentence = prev && /[.!?…]$/.test(prev);
+    if (prev && !bulletRe.test(l) && !prevEndsSentence &&
+        (startsLower || startsConnector || prevDangling) &&
+        (prev.length + l.length) < 400) {
+      merged[merged.length - 1] = prev + ' ' + l;
+    } else {
+      merged.push(l);
+    }
+  }
+  return merged;
+}
+
+/* ---- Détection de la section courante (expérience / formation / etc.) ---- */
+function sectionOf(l, lang) {
+  const low = l.toLowerCase().trim();
+  if (l.length > 60) return null;
+  const exp = ['expérience', 'parcours professionnel', 'experience', 'employment', 'work history', 'stages'];
+  const edu = ['formation', 'études', 'diplômes', 'cursus', 'education', 'academic'];
+  const other = ['compétences', 'skills', 'langues', 'languages', 'centres d', 'intérêts', 'hobbies', 'certifications', 'projets', 'projects', 'profil', 'à propos', 'about', 'contact'];
+  if (exp.some(t => low.startsWith(t))) return 'exp';
+  if (edu.some(t => low.startsWith(t))) return 'edu';
+  if (other.some(t => low.startsWith(t))) return 'other';
+  return null;
+}
+
 /* ---- Revue ligne par ligne ---- */
 function isContentLine(l, lang) {
   const low = l.toLowerCase();
-  if (l.length < 20 || l.length > 220) return false;
+  if (l.length < 20 || l.length > 300) return false;
   if (/@|linkedin|github|http|www\.|permis [ab]/i.test(low)) return false;
   if (/(\+33|0)\s?[1-9]([\s.-]?\d{2}){4}/.test(l)) return false;
   /* Titres de sections */
@@ -727,9 +763,16 @@ function suggestVerb(l, lang) {
 function buildLineReview(lines, lang) {
   const review = [];
   const seen = new Set();
+  let currentSection = null;
+  const hasExpSection = lines.some(l => sectionOf(l.trim(), lang) === 'exp');
   for (const raw of lines) {
     if (review.length >= 8) break;
     const l = raw.trim();
+    const sec = sectionOf(l, lang);
+    if (sec) { currentSection = sec; continue; }
+    /* Les critères « verbe d'action / chiffres » ne concernent que les expériences :
+       on ignore la formation, les compétences, les langues, etc. */
+    if (hasExpSection && currentSection !== 'exp') continue;
     if (!isContentLine(l, lang) || seen.has(l)) continue;
     seen.add(l);
     const flags = [];
@@ -854,6 +897,7 @@ function buildExamples(lines, lang, review) {
 }
 
 function analyze(text, lines, fileName, pageCount) {
+  lines = mergeWrappedLines(lines);
   const cleaned = text.replace(/\s+/g, ' ').trim();
   const lower = cleaned.toLowerCase();
   const words = cleaned.split(/\s+/).filter(Boolean);
