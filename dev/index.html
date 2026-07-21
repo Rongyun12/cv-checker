@@ -1562,9 +1562,8 @@ function analyze(text, lines, fileName, pageCount) {
     document.getElementById('kwCard').style.display = 'none';
     kwChecks = [
       {ok: found.length >= 3, pts: Math.min(70, found.length * 14), label: found.length + ' compétence(s) clé(s) identifiée(s) (Excel, VBA, langues…)'},
-      {ok: false, pts: 0, label: "Collez l'offre d'emploi visée pour un vrai matching (+30 pts possibles)"}
+      {ok: false, pts: 0, label: "Collez l'offre d'emploi visée pour mesurer le vrai matching (jusqu'à +30 pts)"}
     ];
-    if (found.length >= 3) kwChecks[1] = {ok: false, pts: 30, label: "Astuce : collez l'offre d'emploi visée pour un matching précis"};
   }
 
   /* Formation */
