@@ -46,7 +46,7 @@
         {
           "@type": "Question",
           "name": "Mon CV est-il envoyé sur un serveur ?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Non. L'analyse de CVScore s'exécute entièrement dans votre navigateur grâce à JavaScript. Votre CV n'est jamais téléversé, stocké ni transmis : il ne quitte pas votre appareil." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Non. L'analyse de CVScore s'exécute entièrement dans votre navigateur grâce à JavaScript. Votre CV n'est jamais téléversé, stocké ni transmis : il ne quitte pas votre appareil. Seules des statistiques de visite anonymes et sans cookie sont mesurées, jamais le contenu de votre CV." }
         },
         {
           "@type": "Question",
@@ -812,7 +812,7 @@
     <textarea id="jobText" placeholder="Collez ici le texte de l'offre d'emploi…"></textarea>
   </div>
 
-  <p class="privacy-note"><b>Confidentialité totale :</b> l'analyse s'exécute dans votre navigateur, aucune donnée n'est envoyée sur un serveur.</p>
+  <p class="privacy-note"><b>Confidentialité totale :</b> votre CV est analysé dans votre navigateur et n'est jamais envoyé sur un serveur. Seules des statistiques de visite anonymes, sans cookie, sont mesurées.</p>
 </section>
 
 <section class="features" id="features">
@@ -950,7 +950,7 @@
   </details>
   <details>
     <summary>Mon CV est-il envoyé sur un serveur ?</summary>
-    <p>Non. L'analyse s'exécute entièrement dans votre navigateur grâce à JavaScript. Votre CV n'est jamais téléversé, stocké ni transmis : il ne quitte pas votre appareil. C'est vérifiable dans les outils réseau de votre navigateur.</p>
+    <p>Non. L'analyse s'exécute entièrement dans votre navigateur grâce à JavaScript. Votre CV n'est jamais téléversé, stocké ni transmis : il ne quitte pas votre appareil, c'est vérifiable dans les outils réseau de votre navigateur. Nous mesurons uniquement des statistiques de visite anonymes et sans cookie (nombre de pages vues), jamais le contenu de votre CV.</p>
   </details>
   <details>
     <summary>CVScore est-il vraiment gratuit ?</summary>
@@ -966,10 +966,33 @@
   </details>
 </section>
 
-<footer>cvscore: v13 — analyse ATS locale et gratuite. aucune donnée collectée.</footer>
+<footer>cvscore: v14 — analyse ATS locale et gratuite. votre CV n'est jamais envoyé sur un serveur.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ================== ANALYTICS (GoatCounter, sans cookie) ==================
+   GC_CODE vide = analytics DÉSACTIVÉ : aucune requête n'est envoyée.
+   Pour activer : renseignez votre code GoatCounter (ex. 'cvscore' pour
+   https://cvscore.goatcounter.com). Le script est cookieless et ne collecte
+   jamais le contenu du CV — uniquement des pages vues et des événements. */
+const GC_CODE = 'rongyun';
+if (GC_CODE) {
+  window.goatcounter = { no_onload: false };
+  const gcs = document.createElement('script');
+  gcs.async = true;
+  gcs.src = 'https://gc.zgo.at/count.js';
+  gcs.setAttribute('data-goatcounter', 'https://' + GC_CODE + '.goatcounter.com/count');
+  document.head.appendChild(gcs);
+}
+/* Envoi d'un événement (no-op si analytics désactivé ou non chargé) */
+function track(name, title) {
+  try {
+    if (window.goatcounter && window.goatcounter.count) {
+      window.goatcounter.count({ path: name, title: title || name, event: true });
+    }
+  } catch (e) { /* jamais bloquant */ }
+}
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -1751,6 +1774,8 @@ function analyze(text, lines, fileName, pageCount) {
       expPresent, eduPresent, hasDiploma, pageCount } };
   renderResults(score, criteria, advice, examples, review, sectors, fileName, lang);
   setupMetier(sectors, lower, lang);
+  track('cv-analyse', 'CV analysé');
+  if (jobText) track('offre-collee', "Offre d'emploi collée");
 }
 
 function renderResults(score, criteria, advice, examples, review, sectors, fileName, lang) {
@@ -1962,6 +1987,7 @@ function buildRecruiterScan() {
     : "En 7 secondes, le recruteur ne trouve pas l'essentiel. Traitez d'abord la colonne rouge : c'est ce qui fait rejeter avant lecture.";
 }
 document.getElementById('btnRecruiter').addEventListener('click', () => {
+  track('mode-recruteur', 'Mode recruteur ouvert');
   buildRecruiterScan();
   document.getElementById('recruiterModal').classList.add('open');
 });
@@ -2002,7 +2028,7 @@ function setupMetier(sectors, lower, lang) {
     ? sectors[0].key : withSkills[0];
   sel.value = detected;
   renderMetier(detected, lower);
-  sel.onchange = () => renderMetier(sel.value, lower);
+  sel.onchange = () => { renderMetier(sel.value, lower); track('metier-change', 'Métier changé'); };
 }
 let lastShare = null;
 const SITE_URL = 'rongyun12.github.io/cv-checker';
@@ -2074,6 +2100,7 @@ function shareText(score) {
 
 document.getElementById('btnShare').addEventListener('click', () => {
   if (!lastShare) return;
+  track('partage-ouvert', 'Partage ouvert');
   const wrap = document.getElementById('shareCanvasWrap');
   wrap.innerHTML = '';
   wrap.appendChild(buildShareCanvas(lastShare.score));
@@ -2085,6 +2112,7 @@ document.getElementById('btnShareClose').addEventListener('click', () => {
 document.getElementById('btnShareDownload').addEventListener('click', () => {
   const canvas = document.querySelector('#shareCanvasWrap canvas');
   if (!canvas) return;
+  track('partage-telecharge', 'Image de partage téléchargée');
   const a = document.createElement('a');
   a.download = 'mon-score-cvscore.png';
   a.href = canvas.toDataURL('image/png');
@@ -2093,6 +2121,7 @@ document.getElementById('btnShareDownload').addEventListener('click', () => {
 document.getElementById('btnShareNative').addEventListener('click', async () => {
   const canvas = document.querySelector('#shareCanvasWrap canvas');
   if (!canvas || !lastShare) return;
+  track('partage-natif', 'Partage natif');
   const text = shareText(lastShare.score);
   try {
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
