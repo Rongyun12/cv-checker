@@ -644,6 +644,97 @@
   .dot.ok { background: var(--green); }
   .dot.ko { background: var(--red); }
 
+  /* ---- Bouton mode recruteur ---- */
+  .btn-recruiter {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-top: 16px;
+    margin-right: 10px;
+  }
+  .btn-recruiter:hover { opacity: 0.88; }
+
+  /* ---- Modale recruteur ---- */
+  .recruiter-card { max-width: 560px; text-align: left; }
+  .recruiter-card h3 { text-align: center; }
+  .reco-timer {
+    text-align: center;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 0.8rem;
+    color: var(--navy-soft);
+    margin-bottom: 16px;
+  }
+  .reco-timer span { color: var(--gold); font-weight: 800; font-size: 1.1rem; }
+  .reco-scan {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    background: var(--bg-soft);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .reco-scan .seen { color: var(--navy); font-weight: 600; }
+  .reco-scan .skimmed { color: #b9bcc6; }
+  .reco-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .reco-cols { grid-template-columns: 1fr; } }
+  .reco-col { border-radius: 12px; padding: 14px; }
+  .reco-notice { background: #e8f6ef; }
+  .reco-ignore { background: #fdecea; }
+  .reco-col-title { font-weight: 800; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .reco-notice .reco-col-title { color: var(--green); }
+  .reco-ignore .reco-col-title { color: var(--red); }
+  .reco-col ul { list-style: none; }
+  .reco-col li { font-size: 0.83rem; padding: 4px 0; color: var(--navy); }
+  .reco-verdict {
+    margin-top: 16px;
+    font-size: 0.9rem;
+    text-align: center;
+    color: var(--navy-soft);
+    background: var(--bg-soft);
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+
+  /* ---- Analyse par métier ---- */
+  .metier-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  #metierSelect {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--navy);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: #fff;
+    cursor: pointer;
+  }
+  #metierSelect:focus { outline: 2px solid var(--gold-light); border-color: transparent; }
+  .metier-cov {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .metier-cov .cov-bar { flex: 1; height: 10px; background: var(--bg-soft); border-radius: 5px; overflow: hidden; }
+  .metier-cov .cov-fill { height: 100%; border-radius: 5px; width: 0; transition: width 1s cubic-bezier(.25,.8,.25,1); }
+  .metier-cov .cov-num { font-weight: 800; font-size: 0.95rem; }
+  .metier-tip {
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: var(--navy-soft);
+    background: var(--bg-soft);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+
   /* ---- FAQ (contenu SEO) ---- */
   .faq {
     max-width: 760px;
@@ -776,6 +867,7 @@
       <div class="file-chip" id="fileChip">cv.pdf</div>
       <h2 id="verdictTitle">—</h2>
       <p id="verdictText">—</p>
+      <button class="btn-recruiter" id="btnRecruiter">Voir mon CV comme un recruteur</button>
       <button class="btn-share" id="btnShare">Partager mon score</button>
       <button class="btn-restart" onclick="location.reload()">Analyser un autre CV</button>
     </div>
@@ -814,6 +906,17 @@
         <div class="keywords-box" id="kwBox"></div>
       </div>
 
+      <div class="card" id="metierCard" style="display:none;">
+        <h3>Compétences attendues pour votre métier</h3>
+        <div class="metier-head">
+          <span class="review-summary" style="margin:0;flex:1;">Métier détecté depuis votre CV. Changez-le si besoin :</span>
+          <select id="metierSelect"></select>
+        </div>
+        <div class="metier-cov" id="metierCoverage"></div>
+        <div class="keywords-box" id="metierBox"></div>
+        <div class="metier-tip" id="metierTip"></div>
+      </div>
+
       <div class="card" id="companiesCard" style="display:none;">
         <h3>Entreprises où ce CV peut postuler</h3>
         <div class="review-summary" id="companiesIntro"></div>
@@ -830,6 +933,28 @@
     <div class="modal-actions">
       <button class="btn-primary" id="btnPickAnother">Choisir un autre fichier</button>
       <button class="btn-ghost" id="btnAnalyzeAnyway">Analyser quand même</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="recruiterModal">
+  <div class="modal-card recruiter-card">
+    <h3>Votre CV vu par un recruteur</h3>
+    <div class="reco-timer"><span id="recoSeconds">7</span> secondes — le temps réel du premier tri</div>
+    <div class="reco-scan" id="recoScan"></div>
+    <div class="reco-cols">
+      <div class="reco-col reco-notice">
+        <div class="reco-col-title">Ce qu'il remarque d'abord</div>
+        <ul id="recoNotice"></ul>
+      </div>
+      <div class="reco-col reco-ignore">
+        <div class="reco-col-title">Ce qu'il ignore ou survole</div>
+        <ul id="recoIgnore"></ul>
+      </div>
+    </div>
+    <p class="reco-verdict" id="recoVerdict"></p>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnRecruiterClose">Fermer</button>
     </div>
   </div>
 </div>
@@ -870,7 +995,7 @@
   </details>
 </section>
 
-<footer>cvscore: v12-dev — analyse ATS locale et gratuite. aucune donnée collectée.</footer>
+<footer>cvscore: v13-dev — analyse ATS locale et gratuite. aucune donnée collectée.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1061,46 +1186,55 @@ const SECTORS = {
   patrimoine: {
     label: 'Gestion de patrimoine & banque privée',
     kw: ['patrimoine', 'cgp', 'cgpi', 'banque privée', 'assurance vie', 'assurance-vie', 'succession', 'placement', 'family office', 'private banking', 'wealth management', 'défiscalisation'],
+    skills: ['excel', 'vba', 'bloomberg', 'assurance vie', 'fiscalité', "allocation d'actifs", 'succession', 'crm', 'anglais', 'réglementation'],
     companies: [['BNP Paribas Banque Privée','bnpparibas.com'],['Rothschild & Co','rothschildandco.com'],['UBS','ubs.com'],['Primonial','primonial.com'],['Cyrus Conseil','cyrusconseil.fr'],['AXA','axa.com']]
   },
   finance: {
     label: 'Finance & banque',
     kw: ['finance', 'banque', 'marchés financiers', 'trading', 'asset management', 'portefeuille', 'm&a', 'private equity', 'analyste financier', 'bloomberg', 'salle des marchés', 'corporate finance'],
+    skills: ['excel', 'vba', 'python', 'bloomberg', 'modélisation', 'analyse financière', 'powerpoint', 'sql', 'anglais', 'valorisation'],
     companies: [['BNP Paribas','bnpparibas.com'],['J.P. Morgan','jpmorgan.com'],['Société Générale','societegenerale.com'],['Amundi','amundi.com'],['Lazard','lazard.com'],['Goldman Sachs','goldmansachs.com']]
   },
   audit: {
     label: 'Audit & expertise comptable',
     kw: ['audit', 'comptabilité', 'comptable', 'consolidation', 'commissaire aux comptes', 'expertise comptable', 'ifrs', 'contrôle de gestion'],
+    skills: ['excel', 'ifrs', 'consolidation', 'contrôle interne', 'comptabilité', 'sap', 'révision', 'anglais', 'fiscalité', 'reporting'],
     companies: [['Deloitte','deloitte.com'],['EY','ey.com'],['KPMG','kpmg.com'],['PwC','pwc.com'],['Forvis Mazars','forvismazars.com'],['Grant Thornton','grantthornton.fr']]
   },
   droit: {
     label: 'Droit & cabinets d\'avocats',
     kw: ['droit', 'juridique', 'juriste', 'avocat', 'contentieux', 'cabinet d\'avocats', 'master droit', 'licence droit', 'tribunal', 'fiscalité', 'droit des sociétés', 'droit des affaires'],
+    skills: ['droit des sociétés', 'contentieux', "rédaction d'actes", 'veille juridique', 'droit des affaires', 'fiscalité', 'anglais juridique', 'négociation', 'conformité', 'contrats'],
     companies: [['Fidal','fidal.com'],['Gide','gide.com'],['CMS Francis Lefebvre','cms.law'],['Bredin Prat','bredinprat.com'],['August Debouzy','august-debouzy.com'],['LPA Law','lpalaw.com']]
   },
   notariat: {
     label: 'Notariat',
     kw: ['notaire', 'notarial', 'notariat', 'acte authentique', 'office notarial', 'étude notariale', 'clerc de notaire'],
+    skills: ['acte authentique', 'droit immobilier', 'succession', 'droit de la famille', "rédaction d'actes", 'fiscalité', 'logiciel notarial', 'relation client', 'urbanisme', 'régimes matrimoniaux'],
     companies: [['Cheuvreux Notaires','cheuvreux.fr'],['Monassier & Associés','monassier.com'],['14 Pyramides Notaires','14pyramides.notaires.fr'],['Lasaygues','lasaygues.com'],['Michelez Notaires','michelez.notaires.fr'],['Victoires Notaires','victoires-notaires.fr']]
   },
   ingenierie: {
     label: 'Ingénierie, industrie & énergie',
     kw: ['ingénieur', 'ingénierie', 'mécanique', 'électronique', 'énergie', 'industrie', 'production', 'maintenance', 'bureau d\'études', 'génie civil', 'process'],
+    skills: ['cao', 'autocad', 'solidworks', 'gestion de projet', 'matlab', 'lean', 'python', 'anglais technique', 'maintenance', 'normes'],
     companies: [['TotalEnergies','totalenergies.com'],['EDF','edf.fr'],['Airbus','airbus.com'],['Safran','safran-group.com'],['Vinci','vinci.com'],['Thales','thalesgroup.com']]
   },
   sante: {
     label: 'Santé & pharmaceutique',
     kw: ['santé', 'pharmaceutique', 'pharmacie', 'médical', 'clinique', 'hôpital', 'laboratoire', 'biologie', 'infirmier', 'essais cliniques'],
+    skills: ['bonnes pratiques', 'essais cliniques', 'pharmacovigilance', 'réglementation', 'biologie', 'anglais scientifique', 'gestion de projet', 'qualité', 'statistiques', 'relation patient'],
     companies: [['Sanofi','sanofi.com'],['Servier','servier.com'],['Pierre Fabre','pierre-fabre.com'],['bioMérieux','biomerieux.com'],['Ipsen','ipsen.com'],['Doctolib','doctolib.fr']]
   },
   tech: {
     label: 'Tech & informatique',
     kw: ['développeur', 'informatique', 'logiciel', 'data', 'python', 'javascript', 'cybersécurité', 'cloud', 'devops', 'intelligence artificielle', 'sql', 'fullstack'],
+    skills: ['github', 'python', 'javascript', 'react', 'sql', 'api', 'docker', 'cloud', 'tests', 'anglais'],
     companies: [['Capgemini','capgemini.com'],['Dassault Systèmes','3ds.com'],['Sopra Steria','soprasteria.com'],['OVHcloud','ovhcloud.com'],['Criteo','criteo.com'],['Datadog','datadoghq.com']]
   },
   marketing: {
     label: 'Commerce & marketing',
     kw: ['marketing', 'communication', 'commercial', 'vente', 'digital', 'brand', 'réseaux sociaux', 'e-commerce', 'chef de produit'],
+    skills: ['seo', 'google ads', 'google analytics', 'réseaux sociaux', 'content', 'crm', 'photoshop', 'e-commerce', 'emailing', 'anglais'],
     companies: [['L\'Oréal','loreal.com'],['LVMH','lvmh.com'],['Danone','danone.com'],['Publicis','publicisgroupe.com'],['Carrefour','carrefour.com'],['Decathlon','decathlon.com']]
   }
 };
@@ -1640,7 +1774,12 @@ function analyze(text, lines, fileName, pageCount) {
   const prio = { high: 0, med: 1, low: 2 };
   advice.sort((a, b) => prio[a.p] - prio[b.p]);
 
+  lastAnalysis = { score, criteria, advice, review, sectors, lang, lower,
+    signals: { hasEmail, hasPhone, hasLinkedIn, sectionsFound, secMissing, words: words.length,
+      verbsFound: verbsFound.length, numbers: numbers.length, dates: dates.length,
+      expPresent, eduPresent, hasDiploma, pageCount } };
   renderResults(score, criteria, advice, examples, review, sectors, fileName, lang);
+  setupMetier(sectors, lower, lang);
 }
 
 function renderResults(score, criteria, advice, examples, review, sectors, fileName, lang) {
@@ -1799,6 +1938,101 @@ function renderResults(score, criteria, advice, examples, review, sectors, fileN
 }
 
 /* ================== PARTAGE DU SCORE (image générée localement) ================== */
+let lastAnalysis = null;
+
+/* ================== MODE RECRUTEUR (scan 7 secondes) ================== */
+function buildRecruiterScan() {
+  if (!lastAnalysis) return;
+  const s = lastAnalysis.signals, lang = lastAnalysis.lang;
+  const notice = [], ignore = [];
+
+  /* Ce qu'un recruteur capte en priorité dans les 7 premières secondes */
+  if (s.expPresent) notice.push('Vos expériences et le type de poste occupé');
+  else ignore.push("Aucune section Expérience clairement repérable en un coup d'œil");
+
+  if (s.eduPresent && s.hasDiploma) notice.push('Votre formation et votre diplôme');
+  else if (s.eduPresent) notice.push('Votre formation');
+  else ignore.push('Votre formation, noyée ou absente');
+
+  if (s.hasEmail && s.hasPhone) notice.push('Vos coordonnées pour vous recontacter');
+  else ignore.push('Vos coordonnées incomplètes (e-mail ou téléphone)');
+
+  if (s.numbers >= 2) notice.push('Vos résultats chiffrés, qui rassurent vite');
+  else ignore.push('Le manque de résultats chiffrés : vos missions paraissent floues');
+
+  if (s.verbsFound >= 4) notice.push("Vos verbes d'action en tête de ligne");
+  else ignore.push("Des débuts de phrases mous, sans verbe d'action fort");
+
+  if (s.pageCount > 2) ignore.push('Les pages au-delà de la 1re : rarement lues');
+  if (s.words > 900) ignore.push('Les longues listes de compétences : survolées, pas lues');
+  else if (s.words < 200) ignore.push('Un CV trop court : le recruteur reste sur sa faim');
+
+  if (s.secMissing && s.secMissing.length) ignore.push('Les sections aux titres non standards, sautées');
+
+  /* Reconstruction d'un "regard" : ce qu'il lit vs ce qu'il survole */
+  const scan = [];
+  scan.push({t: s.eduPresent ? 'Formation ✓' : 'Formation ?', seen: s.eduPresent});
+  scan.push({t: s.expPresent ? 'Expérience ✓' : 'Expérience ?', seen: s.expPresent});
+  scan.push({t: s.numbers >= 2 ? 'Résultats chiffrés ✓' : 'Résultats chiffrés — cherche…', seen: s.numbers >= 2});
+  scan.push({t: 'Compétences', seen: s.words <= 900});
+  scan.push({t: s.hasEmail && s.hasPhone ? 'Contact ✓' : 'Contact incomplet', seen: s.hasEmail && s.hasPhone});
+  document.getElementById('recoScan').innerHTML = scan
+    .map(x => '<span class="' + (x.seen ? 'seen' : 'skimmed') + '">' + escapeHtml(x.t) + '</span>')
+    .join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+
+  document.getElementById('recoNotice').innerHTML = notice.slice(0, 5).map(t => '<li>' + escapeHtml(t) + '</li>').join('') || '<li>Rien ne ressort assez vite — c\'est le principal problème.</li>';
+  document.getElementById('recoIgnore').innerHTML = ignore.slice(0, 5).map(t => '<li>' + escapeHtml(t) + '</li>').join('') || '<li>Rien de rédhibitoire : bon réflexe de lecture.</li>';
+
+  const score = lastAnalysis.score;
+  document.getElementById('recoVerdict').textContent = score >= 75
+    ? "En 7 secondes, l'essentiel ressort : le recruteur a envie de lire la suite."
+    : score >= 50
+    ? "En 7 secondes, le recruteur hésite. Renforcez ce qu'il ignore (colonne rouge) pour le convaincre plus vite."
+    : "En 7 secondes, le recruteur ne trouve pas l'essentiel. Traitez d'abord la colonne rouge : c'est ce qui fait rejeter avant lecture.";
+}
+document.getElementById('btnRecruiter').addEventListener('click', () => {
+  buildRecruiterScan();
+  document.getElementById('recruiterModal').classList.add('open');
+});
+document.getElementById('btnRecruiterClose').addEventListener('click', () => {
+  document.getElementById('recruiterModal').classList.remove('open');
+});
+
+/* ================== ANALYSE PAR MÉTIER ================== */
+function renderMetier(key, lower) {
+  const sec = SECTORS[key];
+  if (!sec || !sec.skills) { document.getElementById('metierCard').style.display = 'none'; return; }
+  const found = sec.skills.filter(k => lower.includes(k));
+  const missing = sec.skills.filter(k => !lower.includes(k));
+  const pct = Math.round((found.length / sec.skills.length) * 100);
+  const color = pct >= 66 ? 'var(--green)' : pct >= 33 ? 'var(--orange)' : 'var(--red)';
+
+  document.getElementById('metierCoverage').innerHTML =
+    '<div class="cov-bar"><div class="cov-fill" style="background:' + color + '"></div></div>' +
+    '<span class="cov-num" style="color:' + color + '">' + found.length + '/' + sec.skills.length + '</span>';
+  document.getElementById('metierBox').innerHTML =
+    found.map(k => '<span class="kw found">' + escapeHtml(k) + '</span>').join('') +
+    missing.map(k => '<span class="kw missing">' + escapeHtml(k) + '</span>').join('');
+  document.getElementById('metierTip').textContent = missing.length
+    ? 'Compétences en rouge attendues pour « ' + sec.label + ' » et absentes de votre CV. Ajoutez celles que vous maîtrisez (section Compétences) : les recruteurs de ce secteur les recherchent explicitement.'
+    : 'Toutes les compétences clés du métier « ' + sec.label + ' » figurent sur votre CV. Excellent ciblage.';
+  requestAnimationFrame(() => { setTimeout(() => {
+    const bar = document.querySelector('#metierCoverage .cov-fill'); if (bar) bar.style.width = pct + '%';
+  }, 80); });
+}
+function setupMetier(sectors, lower, lang) {
+  const card = document.getElementById('metierCard');
+  const sel = document.getElementById('metierSelect');
+  const withSkills = Object.keys(SECTORS).filter(k => SECTORS[k].skills);
+  if (!withSkills.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  sel.innerHTML = withSkills.map(k => '<option value="' + k + '">' + SECTORS[k].label + '</option>').join('');
+  const detected = (sectors && sectors.length && SECTORS[sectors[0].key] && SECTORS[sectors[0].key].skills)
+    ? sectors[0].key : withSkills[0];
+  sel.value = detected;
+  renderMetier(detected, lower);
+  sel.onchange = () => renderMetier(sel.value, lower);
+}
 let lastShare = null;
 const SITE_URL = 'rongyun12.github.io/cv-checker';
 
