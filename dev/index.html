@@ -995,7 +995,7 @@
   </details>
 </section>
 
-<footer>cvscore: v14-dev — analyse ATS locale et gratuite. votre CV n'est jamais envoyé sur un serveur.</footer>
+<footer>cvscore: v15-dev — analyse ATS locale et gratuite. votre CV n'est jamais envoyé sur un serveur.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1006,22 +1006,23 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
    https://cvscore.goatcounter.com). Le script est cookieless et ne collecte
    jamais le contenu du CV — uniquement des pages vues et des événements. */
 const GC_CODE = 'rongyun';
-if (GC_CODE) {
-  window.goatcounter = { no_onload: false };
-  const gcs = document.createElement('script');
-  gcs.async = true;
-  gcs.src = 'https://gc.zgo.at/count.js';
-  gcs.setAttribute('data-goatcounter', 'https://' + GC_CODE + '.goatcounter.com/count');
-  document.head.appendChild(gcs);
-}
-/* Envoi d'un événement (no-op si analytics désactivé ou non chargé) */
-function track(name, title) {
+/* Envoi direct à l'endpoint GoatCounter (aucune dépendance à un CDN externe).
+   Beacon image cookieless : ne transmet jamais le contenu du CV. */
+function gcSend(path, title, isEvent) {
   try {
-    if (window.goatcounter && window.goatcounter.count) {
-      window.goatcounter.count({ path: name, title: title || name, event: true });
-    }
+    if (!GC_CODE) return;
+    let q = 'p=' + encodeURIComponent(path)
+      + '&t=' + encodeURIComponent(title || document.title)
+      + '&rnd=' + Math.random().toString(36).slice(2);
+    if (isEvent) q += '&e=true';
+    else q += '&r=' + encodeURIComponent(document.referrer || '');
+    new Image().src = 'https://' + GC_CODE + '.goatcounter.com/count?' + q;
   } catch (e) { /* jamais bloquant */ }
 }
+/* Événement (no-op si analytics désactivé) */
+function track(name, title) { gcSend(name, title || name, true); }
+/* Page vue au chargement */
+if (GC_CODE) gcSend(location.pathname, document.title, false);
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
