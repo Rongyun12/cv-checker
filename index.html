@@ -1699,13 +1699,17 @@ function buildShareCanvas(score) {
   ctx.fillStyle = '#0e1a3a';
   ctx.fillRect(0, 0, 1080, 1080);
 
-  /* Logo */
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
+  /* Logo (centré sans chevauchement) */
   ctx.font = '800 64px Inter, Arial, sans-serif';
-  ctx.fillText('CV', 497, 130);
+  const wCV = ctx.measureText('CV').width;
+  const wScore = ctx.measureText('Score').width;
+  const startX = 540 - (wCV + wScore) / 2;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('CV', startX, 130);
   ctx.fillStyle = '#c9a227';
-  ctx.fillText('Score', 620, 130);
+  ctx.fillText('Score', startX + wCV, 130);
+  ctx.textAlign = 'center';
 
   /* Titre */
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
